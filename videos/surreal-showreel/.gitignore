@@ -1,0 +1,5 @@
+renders/
+snapshots/
+.hyperframes/
+# third-party audio extracted from the reference clip; not committed
+assets/bgm.mp3

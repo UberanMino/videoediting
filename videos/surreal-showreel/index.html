@@ -1,0 +1,1492 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Surreal Showreel</title>
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Anton";
+        src: url("assets/fonts/anton-latin-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Rubik Mono One";
+        src: url("assets/fonts/rubik-mono-one-latin-400-normal.woff2") format("woff2");
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        font-family: "Anton", sans-serif;
+      }
+      #gl {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #stage {
+        position: absolute;
+        inset: 0;
+        transform-origin: 50% 50%;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        overflow: visible;
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+      }
+      .ent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 50% 50%;
+        will-change: transform, opacity;
+      }
+      .glow {
+        filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 26px rgba(255, 255, 255, 0.85));
+      }
+
+      /* slam words */
+      .word {
+        --ca: 6px;
+        position: absolute;
+        left: 0;
+        width: 1080px;
+        display: block;
+        text-align: center;
+        font-family: "Anton", sans-serif;
+        font-size: 250px;
+        line-height: 1;
+        color: #fff;
+        text-transform: uppercase;
+        white-space: nowrap;
+        opacity: 0;
+        text-shadow:
+          calc(var(--ca) * -1) 0 0 #ff00c8,
+          var(--ca) 0 0 #00f0ff,
+          0 0 36px rgba(255, 255, 255, 0.9),
+          0 0 90px rgba(255, 120, 240, 0.6);
+      }
+      .word.sm {
+        font-size: 170px;
+      }
+      .word.xl {
+        font-size: 420px;
+      }
+      .word.dark {
+        color: #0b0014;
+        text-shadow:
+          calc(var(--ca) * -1) 0 0 #ff2fa8,
+          var(--ca) 0 0 #00c8ff,
+          0 0 30px rgba(255, 255, 255, 1),
+          0 0 60px rgba(255, 255, 255, 1);
+      }
+      .word.acid {
+        color: #b6ff00;
+        text-shadow:
+          calc(var(--ca) * -1) 0 0 #7a00ff,
+          var(--ca) 0 0 #ff00a0,
+          0 0 40px rgba(182, 255, 0, 0.9);
+      }
+      .word.chrome {
+        color: transparent;
+        background: linear-gradient(180deg, #ffffff 0%, #bfe9ff 38%, #3a1c71 50%, #ff9ff3 62%, #ffffff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        text-shadow: none;
+        filter: drop-shadow(calc(var(--ca) * -1) 0 0 #ff00c8) drop-shadow(var(--ca) 0 0 #00f0ff)
+          drop-shadow(0 0 30px rgba(255, 255, 255, 0.8));
+      }
+      .word .ch {
+        display: inline-block;
+        transform-origin: 50% 0%;
+      }
+      .melt {
+        filter: url(#melt);
+      }
+
+      /* 3D cube */
+      .cube-wrap {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+        perspective: 1500px;
+        perspective-origin: 50% 46%;
+      }
+      .cube {
+        position: absolute;
+        left: 310px;
+        top: 650px;
+        width: 460px;
+        height: 460px;
+        transform-style: preserve-3d;
+      }
+      .cf {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 8px solid #fff;
+        font-family: "Anton", sans-serif;
+        font-size: 150px;
+        color: #fff;
+        text-shadow:
+          -5px 0 0 #ff00c8,
+          5px 0 0 #00f0ff,
+          0 0 30px #fff;
+        box-shadow:
+          0 0 40px rgba(255, 255, 255, 0.8),
+          inset 0 0 60px rgba(255, 255, 255, 0.5);
+      }
+
+      /* mirror quads */
+      .quad {
+        position: absolute;
+        width: 540px;
+        height: 960px;
+        overflow: hidden;
+      }
+      .shock {
+        position: absolute;
+        left: 290px;
+        top: 650px;
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        border: 18px solid #fff;
+        box-shadow:
+          0 0 40px #fff,
+          inset 0 0 40px #fff;
+        opacity: 0;
+      }
+
+      /* overlays */
+      #grain,
+      #vig,
+      #flash {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #grain {
+        opacity: 0.2;
+        mix-blend-mode: overlay;
+        background-size: 384px 384px;
+      }
+      #vig {
+        background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.45) 100%);
+      }
+      #flash {
+        background: #fff;
+        opacity: 0;
+      }
+      .hud {
+        position: absolute;
+        font-family: "Rubik Mono One", monospace;
+        font-size: 26px;
+        line-height: 1;
+        color: #fff;
+        letter-spacing: 1px;
+        text-shadow:
+          0 0 8px rgba(0, 0, 0, 0.9),
+          0 0 18px rgba(255, 0, 200, 0.8);
+        white-space: nowrap;
+      }
+      #hud-rec {
+        left: 56px;
+        top: 70px;
+      }
+      #hud-file {
+        right: 56px;
+        top: 70px;
+        font-size: 20px;
+      }
+      #hud-fx {
+        left: 56px;
+        bottom: 80px;
+      }
+      #hud-tc {
+        right: 56px;
+        bottom: 80px;
+      }
+      .rec-dot {
+        display: inline-block;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #ff1744;
+        box-shadow: 0 0 14px #ff1744;
+        margin-right: 12px;
+        vertical-align: -2px;
+      }
+      #end-card {
+        position: absolute;
+        inset: 0;
+      }
+      .end-line {
+        position: absolute;
+        left: 0;
+        width: 1080px;
+        text-align: center;
+        white-space: nowrap;
+        color: #fff;
+      }
+      #end-title {
+        --ca: 10px;
+        top: 760px;
+        font-family: "Anton", sans-serif;
+        font-size: 300px;
+        line-height: 1;
+        text-shadow:
+          calc(var(--ca) * -1) 0 0 #ff00c8,
+          var(--ca) 0 0 #00f0ff,
+          0 0 50px rgba(255, 255, 255, 0.9);
+      }
+      #end-x {
+        top: 1110px;
+        font-family: "Rubik Mono One", monospace;
+        font-size: 64px;
+        line-height: 1;
+        text-shadow: 0 0 24px #ff00c8;
+      }
+      #end-sub {
+        top: 1230px;
+        font-family: "Rubik Mono One", monospace;
+        font-size: 30px;
+        line-height: 1;
+        letter-spacing: 12px;
+        color: #b6ff00;
+        text-shadow: 0 0 16px #7a00ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="9.056"
+      data-width="1080"
+      data-height="1920"
+    >
+      <canvas id="gl" width="720" height="1280"></canvas>
+
+      <svg width="0" height="0" style="position: absolute">
+        <filter id="melt" x="-20%" y="-20%" width="140%" height="160%">
+          <feTurbulence id="melt-turb" type="fractalNoise" baseFrequency="0.008 0.03" numOctaves="2" seed="4" result="n" />
+          <feDisplacementMap id="melt-disp" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+
+      <div id="stage" data-layout-allow-overflow>
+        <!-- A · echo trails: screaming face -->
+        <section id="sc-a" class="scene clip" data-start="0" data-duration="0.906" data-track-index="1">
+          <div class="layer" id="a-faces"></div>
+          <div class="word" data-in="0.07" data-out="0.906" style="top: 170px">SHOW</div>
+          <div class="word" data-in="0.488" data-out="0.906" style="top: 1430px">REEL</div>
+        </section>
+
+        <!-- B · kaleidoscope sky + dancer carousel -->
+        <section id="sc-b" class="scene clip" data-start="0.906" data-duration="0.789" data-track-index="1">
+          <div class="layer" id="b-dancers"></div>
+          <div class="word" data-in="0.906" data-out="1.3" style="top: 170px">ZERO</div>
+          <div class="word sm" data-in="0.99" data-out="1.3" style="top: 430px">FOOTAGE</div>
+          <div class="word" data-in="1.3" data-out="1.695" style="top: 170px">100%</div>
+          <div class="word" data-in="1.4" data-out="1.695" style="top: 430px">CODE</div>
+        </section>
+
+        <!-- C · strobe build-up -->
+        <section id="sc-c" class="scene clip" data-start="1.695" data-duration="0.418" data-track-index="1">
+          <div class="layer" id="c-faces"></div>
+          <div class="word xl" data-in="1.695" data-out="1.834" style="top: 740px">WAIT</div>
+          <div class="word xl" data-in="1.834" data-out="1.974" style="top: 740px">FOR</div>
+          <div class="word xl" data-in="1.974" data-out="2.113" style="top: 740px">IT</div>
+        </section>
+
+        <!-- D · eye tunnel -->
+        <section id="sc-d" class="scene clip" data-start="2.113" data-duration="0.813" data-track-index="1">
+          <div class="shock" id="d-shock1"></div>
+          <div class="shock" id="d-shock2"></div>
+          <div class="layer" id="d-eyes"></div>
+          <div class="word chrome" data-in="2.2" data-out="2.926" style="top: 1350px">PURE</div>
+          <div class="word chrome" data-in="2.531" data-out="2.926" style="top: 1580px">MATH</div>
+        </section>
+
+        <!-- E · vertigo spiral of sunglasses heads -->
+        <section id="sc-e" class="scene clip" data-start="2.926" data-duration="0.812" data-track-index="1">
+          <div class="layer" id="e-faces"></div>
+          <div class="word" data-in="2.926" data-out="3.738" style="top: 150px">DIZZY</div>
+          <div class="word" data-in="3.344" data-out="3.738" style="top: 1500px">YET?</div>
+        </section>
+
+        <!-- F · liquid melt -->
+        <section id="sc-f" class="scene clip" data-start="3.738" data-duration="0.813" data-track-index="1">
+          <div class="layer" id="f-eyes"></div>
+          <div class="melt layer">
+            <div class="word acid split" data-in="3.738" data-out="4.156" style="top: 470px">I CAN</div>
+            <div class="word acid split" data-in="3.85" data-out="4.156" style="top: 860px">EDIT</div>
+            <div class="word acid split" data-in="4.156" data-out="4.551" style="top: 470px">LIKE</div>
+            <div class="word acid split" data-in="4.26" data-out="4.551" style="top: 860px">THIS??</div>
+          </div>
+        </section>
+
+        <!-- G · CSS 3D cube -->
+        <section id="sc-g" class="scene clip" data-start="4.551" data-duration="0.836" data-track-index="1">
+          <div class="layer" id="g-cubes"></div>
+          <div class="word" data-in="4.62" data-out="5.387" style="top: 170px">3D?</div>
+          <div class="word" data-in="4.969" data-out="5.387" style="top: 1440px">EASY.</div>
+        </section>
+
+        <!-- H · mirror madness -->
+        <section id="sc-h" class="scene clip" data-start="5.387" data-duration="0.813" data-track-index="1">
+          <div class="layer" id="h-quads"></div>
+          <div class="word" data-in="5.387" data-out="5.585" style="top: 790px">ECHO</div>
+          <div class="word" data-in="5.585" data-out="5.782" style="top: 790px">MIRROR</div>
+          <div class="word" data-in="5.782" data-out="5.99" style="top: 790px">MADNESS</div>
+          <div class="word xl" data-in="5.99" data-out="6.2" style="top: 740px">!!!</div>
+        </section>
+
+        <!-- I · overexposed white room -->
+        <section id="sc-i" class="scene clip" data-start="6.2" data-duration="0.812" data-track-index="1">
+          <div class="layer" id="i-dancers"></div>
+          <div class="word dark sm" data-in="6.3" data-out="7.012" style="top: 190px">WHO LET</div>
+          <div class="word dark sm" data-in="6.594" data-out="7.012" style="top: 390px">ME COOK?</div>
+        </section>
+
+        <!-- J · julia infinite zoom -->
+        <section id="sc-j" class="scene clip" data-start="7.012" data-duration="0.813" data-track-index="1">
+          <div class="layer" id="j-eyes"></div>
+          <div class="word sm" data-in="7.1" data-out="7.825" style="top: 180px">INFINITE</div>
+          <div class="word" data-in="7.43" data-out="7.825" style="top: 1480px">ZOOM</div>
+        </section>
+
+        <!-- K · hyper recap -->
+        <section id="sc-k" class="scene clip" data-start="7.825" data-duration="0.813" data-track-index="1">
+          <div class="layer" id="k-faces"></div>
+          <div class="layer" id="k-words"></div>
+        </section>
+
+        <!-- L · end card -->
+        <section id="sc-l" class="scene clip" data-start="8.638" data-duration="0.418" data-track-index="1">
+          <div id="end-card">
+            <div class="layer" id="l-eye"></div>
+            <div class="end-line" id="end-title">CLAUDE</div>
+            <div class="end-line" id="end-x">× HYPERFRAMES</div>
+            <div class="end-line" id="end-sub">SHOWREEL · 100% CODE</div>
+          </div>
+        </section>
+      </div>
+
+      <div id="grain"></div>
+      <div id="vig"></div>
+      <div id="flash"></div>
+      <div class="hud" id="hud-rec"><span class="rec-dot" id="rec-dot"></span>REC</div>
+      <div class="hud" id="hud-file">SHOWREEL_v27_FINAL(3).mp4</div>
+      <div class="hud" id="hud-fx">FX_01 // ECHO TRAILS</div>
+      <div class="hud" id="hud-tc">00:00:00:00</div>
+
+      <audio id="bgm" src="assets/bgm.mp3" data-start="0" data-duration="9.056" data-track-index="11"></audio>
+    </div>
+
+    <script>
+      (function () {
+        const DUR = 9.056;
+        const FPS = 30;
+        const NS = "http://www.w3.org/2000/svg";
+
+        // ---------- timing (from audiomap.json, 143.6 BPM) ----------
+        const BEATS = [
+          -0.348, 0.07, 0.488, 0.906, 1.3, 1.695, 2.113, 2.531, 2.926, 3.344, 3.738, 4.156, 4.551,
+          4.969, 5.387, 5.782, 6.2, 6.594, 7.012, 7.43, 7.825, 8.243, 8.638, 9.056,
+        ];
+        const Q = 0.1045; // quarter beat
+
+        const SCENES = [
+          { id: "A", s: 0, e: 0.906, mode: 0, fx: "FX_01 // ECHO TRAILS" },
+          { id: "B", s: 0.906, e: 1.695, mode: 1, fx: "FX_02 // KALEIDOSCOPE" },
+          { id: "C", s: 1.695, e: 2.113, mode: 6, fx: "FX_03 // STROBE CUTS" },
+          { id: "D", s: 2.113, e: 2.926, mode: 2, fx: "FX_04 // EYE TUNNEL" },
+          { id: "E", s: 2.926, e: 3.738, mode: 6, fx: "FX_05 // VERTIGO SPIRAL" },
+          { id: "F", s: 3.738, e: 4.551, mode: 3, fx: "FX_06 // LIQUID MELT" },
+          { id: "G", s: 4.551, e: 5.387, mode: 1, fx: "FX_07 // CSS 3D" },
+          { id: "H", s: 5.387, e: 6.2, mode: 0, fx: "FX_08 // MIRROR MADNESS" },
+          { id: "I", s: 6.2, e: 7.012, mode: 5, fx: "FX_09 // OVEREXPOSED" },
+          { id: "J", s: 7.012, e: 7.825, mode: 4, fx: "FX_10 // JULIA ZOOM" },
+          { id: "K", s: 7.825, e: 8.638, mode: 3, fx: "FX_11 // RECAP" },
+          { id: "L", s: 8.638, e: DUR + 1, mode: 7, fx: "FX_12 // THE END?" },
+        ];
+        // in-shader transitions: type 0 fade, 1 iris circle, 2 glitch slices, 3 swirl dissolve
+        const TRANS = [
+          { s: 2.86, e: 2.99, a: 2, b: 6, type: 3 },
+          { s: 3.68, e: 3.8, a: 6, b: 3, type: 2 },
+          { s: 4.49, e: 4.6, a: 3, b: 1, type: 1, c: [0, 0.02] },
+          { s: 6.08, e: 6.26, a: 0, b: 5, type: 0 },
+          { s: 6.94, e: 7.06, a: 5, b: 4, type: 1, c: [0, 0.05] },
+          { s: 8.58, e: 8.7, a: 3, b: 7, type: 2 },
+        ];
+        const FLASHES = [
+          [0, 1, 9],
+          [0.906, 0.55, 10],
+          [2.113, 1, 5],
+          [3.738, 0.35, 12],
+          [5.387, 0.6, 10],
+          [7.012, 0.6, 10],
+          [8.638, 0.8, 8],
+        ];
+        const JULIA_TARGET = [0.381, -0.5862];
+
+        // ---------- helpers ----------
+        function mulberry32(a) {
+          return function () {
+            a |= 0;
+            a = (a + 0x6d2b79f5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+        const rnd = mulberry32(1337);
+        const hash1 = (n) => {
+          const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+          return x - Math.floor(x);
+        };
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, k) => a + (b - a) * k;
+        const smooth = (a, b, x) => {
+          const k = clamp((x - a) / (b - a), 0, 1);
+          return k * k * (3 - 2 * k);
+        };
+        const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+        function lastBeat(t) {
+          let b = BEATS[0];
+          for (const x of BEATS) if (x <= t + 1e-6) b = x;
+          return b;
+        }
+        function beatIndex(t) {
+          let i = 0;
+          for (let k = 0; k < BEATS.length; k++) if (BEATS[k] <= t + 1e-6) i = k;
+          return i;
+        }
+        const pulse = (t, decay = 9) => Math.exp(-(t - lastBeat(t)) * decay);
+        function sceneAt(t) {
+          for (const s of SCENES) if (t >= s.s && t < s.e) return s;
+          return SCENES[SCENES.length - 1];
+        }
+        function sv(tag, attrs, parent) {
+          const e = document.createElementNS(NS, tag);
+          for (const k in attrs) e.setAttribute(k, attrs[k]);
+          if (parent) parent.appendChild(e);
+          return e;
+        }
+        const $ = (id) => document.getElementById(id);
+        let UID = 0;
+
+        // ---------- procedural characters ----------
+        const FACEPAL = [
+          ["#ffd9b8", "#ff7a3d", "#3b1500"],
+          ["#ffc2ec", "#ff2fa8", "#2a0040"],
+          ["#c9fff0", "#00d9a3", "#003b2e"],
+          ["#fff49a", "#ffae00", "#5a1d00"],
+          ["#dccbff", "#7a3dff", "#12002e"],
+          ["#bfe6ff", "#1f8cff", "#001a40"],
+        ];
+
+        function makeFace(pi, size) {
+          const P = FACEPAL[pi % FACEPAL.length];
+          const id = "fg" + UID++;
+          const svg = sv("svg", { viewBox: "-130 -150 260 300", width: size, height: size * (300 / 260) });
+          svg.classList.add("ent");
+          const defs = sv("defs", {}, svg);
+          const g = sv("radialGradient", { id, cx: "40%", cy: "35%", r: "75%" }, defs);
+          sv("stop", { offset: "0%", "stop-color": P[0] }, g);
+          sv("stop", { offset: "100%", "stop-color": P[1] }, g);
+          sv("ellipse", { cx: -97, cy: 8, rx: 18, ry: 27, fill: P[1] }, svg);
+          sv("ellipse", { cx: 97, cy: 8, rx: 18, ry: 27, fill: P[1] }, svg);
+          sv("ellipse", { cx: 0, cy: 0, rx: 95, ry: 112, fill: `url(#${id})` }, svg);
+          sv(
+            "path",
+            {
+              d: "M-92,-48 L-84,-112 L-58,-82 L-44,-138 L-18,-96 L4,-146 L24,-98 L50,-134 L60,-86 L88,-114 L93,-48 Q0,-92 -92,-48Z",
+              fill: P[2],
+            },
+            svg,
+          );
+          const bl = sv("rect", { x: -64, y: -64, width: 48, height: 12, rx: 6, fill: P[2] }, svg);
+          const br = sv("rect", { x: 16, y: -66, width: 48, height: 12, rx: 6, fill: P[2] }, svg);
+          const eL = sv("g", { transform: "translate(-38,-22)" }, svg);
+          sv("circle", { r: 31, fill: "#fff", stroke: "#1a0010", "stroke-width": 3 }, eL);
+          const pL = sv("circle", { r: 12, fill: "#0a0010" }, eL);
+          const eR = sv("g", { transform: "translate(40,-26)" }, svg);
+          sv("circle", { r: 23, fill: "#fff", stroke: "#1a0010", "stroke-width": 3 }, eR);
+          const pR = sv("circle", { r: 9, fill: "#0a0010" }, eR);
+          sv("ellipse", { cx: 0, cy: 18, rx: 13, ry: 9, fill: P[1] }, svg);
+          const mg = sv("g", { transform: "translate(0,60)" }, svg);
+          const mouth = sv("ellipse", { cx: 0, cy: 0, rx: 46, ry: 20, fill: "#2a000c" }, mg);
+          const teeth = sv("ellipse", { cx: 0, cy: -14, rx: 34, ry: 7, fill: "#fff" }, mg);
+          const tongue = sv("ellipse", { cx: 0, cy: 10, rx: 26, ry: 7, fill: "#ff4d7a" }, mg);
+          const gl = sv("g", { opacity: 0 }, svg);
+          sv("rect", { x: -80, y: -52, width: 70, height: 46, rx: 14, fill: "#050008" }, gl);
+          sv("rect", { x: 8, y: -52, width: 70, height: 46, rx: 14, fill: "#050008" }, gl);
+          sv("rect", { x: -12, y: -38, width: 24, height: 7, fill: "#050008" }, gl);
+          sv("path", { d: "M-70,-44 L-52,-44 M18,-44 L36,-44", stroke: "#fff", "stroke-width": 6, "stroke-linecap": "round" }, gl);
+          return {
+            el: svg,
+            size,
+            set(st) {
+              const lx = st.lx || 0,
+                ly = st.ly || 0,
+                open = clamp(st.open == null ? 0.3 : st.open, 0, 1);
+              pL.setAttribute("cx", lx * 13);
+              pL.setAttribute("cy", ly * 13);
+              pR.setAttribute("cx", lx * 9);
+              pR.setAttribute("cy", ly * 9);
+              const ry = 8 + open * 56;
+              mouth.setAttribute("ry", ry);
+              const tr = Math.min(9, ry * 0.3);
+              teeth.setAttribute("cy", -ry + tr * 0.9);
+              teeth.setAttribute("ry", tr);
+              tongue.setAttribute("cy", ry * 0.55);
+              tongue.setAttribute("ry", Math.max(2, ry * 0.32));
+              const b = st.brow || 0;
+              bl.setAttribute("transform", `rotate(${b * 22} -40 -58)`);
+              br.setAttribute("transform", `rotate(${-b * 22} 40 -60)`);
+              gl.setAttribute("opacity", st.glasses ? 1 : 0);
+            },
+          };
+        }
+
+        function makeDancer(opts, size) {
+          const svg = sv("svg", { viewBox: "-160 -260 320 520", width: size, height: size * (520 / 320) });
+          svg.classList.add("ent");
+          const body = sv("g", {}, svg);
+          const W = { fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" };
+          const legL = sv("polyline", { ...W, stroke: opts.pants, "stroke-width": 36 }, body);
+          const legR = sv("polyline", { ...W, stroke: opts.pants, "stroke-width": 36 }, body);
+          sv("rect", { x: -48, y: -135, width: 96, height: 160, rx: 42, fill: opts.suit }, body);
+          const armL = sv("polyline", { ...W, stroke: opts.arms, "stroke-width": 26 }, body);
+          const armR = sv("polyline", { ...W, stroke: opts.arms, "stroke-width": 26 }, body);
+          const head = sv("g", {}, body);
+          sv("circle", { cx: 0, cy: -185, r: 56, fill: opts.skin }, head);
+          if (opts.hood) sv("path", { d: "M-58,-190 Q-60,-252 0,-254 Q60,-252 58,-190 L30,-210 L0,-172 L-30,-210 Z", fill: opts.suit }, head);
+          sv("circle", { cx: -20, cy: -192, r: 11, fill: "#fff" }, head);
+          sv("circle", { cx: 20, cy: -192, r: 11, fill: "#fff" }, head);
+          const pl = sv("circle", { cx: -20, cy: -192, r: 5, fill: "#000" }, head);
+          const pr = sv("circle", { cx: 20, cy: -192, r: 5, fill: "#000" }, head);
+          const m = sv("ellipse", { cx: 0, cy: -158, rx: 16, ry: 10, fill: "#2a000c" }, head);
+          const pts = (a) => a.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+          const seg = (o, a, len) => [o[0] + Math.cos(a) * len, o[1] + Math.sin(a) * len];
+          return {
+            el: svg,
+            size,
+            set(ph, amp = 1) {
+              const s = 0.5 + 0.5 * Math.sin(ph);
+              const shL = [-42, -118],
+                shR = [42, -118];
+              const aUL = 2.3 + 1.7 * s * amp;
+              const aLL = aUL + 0.9 * Math.sin(ph * 2 + 1) * amp;
+              const eLp = seg(shL, aUL, 72);
+              armL.setAttribute("points", pts([shL, eLp, seg(eLp, aLL, 64)]));
+              const s2 = 0.5 + 0.5 * Math.sin(ph + 1.9);
+              const aUR = 0.84 - 1.7 * s2 * amp;
+              const aLR = aUR - 0.9 * Math.sin(ph * 2) * amp;
+              const eRp = seg(shR, aUR, 72);
+              armR.setAttribute("points", pts([shR, eRp, seg(eRp, aLR, 64)]));
+              const hL = [-22, 12],
+                hR = [22, 12];
+              const aTL = Math.PI / 2 + 0.3 + 0.45 * Math.sin(ph) * amp;
+              const kL = seg(hL, aTL, 100);
+              legL.setAttribute("points", pts([hL, kL, seg(kL, aTL - 0.5 * Math.max(0, Math.sin(ph)) * amp, 100)]));
+              const aTR = Math.PI / 2 - 0.3 - 0.45 * Math.sin(ph + Math.PI) * amp;
+              const kR = seg(hR, aTR, 100);
+              legR.setAttribute("points", pts([hR, kR, seg(kR, aTR + 0.5 * Math.max(0, -Math.sin(ph)) * amp, 100)]));
+              const bob = -Math.abs(Math.sin(ph)) * 26 * amp;
+              body.setAttribute("transform", `translate(0,${bob.toFixed(1)})`);
+              head.setAttribute("transform", `rotate(${(Math.sin(ph * 0.5) * 16 * amp).toFixed(1)} 0 -130)`);
+              const lx = Math.sin(ph * 0.7) * 5;
+              pl.setAttribute("cx", -20 + lx);
+              pr.setAttribute("cx", 20 + lx);
+              m.setAttribute("ry", 6 + 14 * s);
+            },
+          };
+        }
+
+        function makeEye(size, seed) {
+          const r = mulberry32(seed);
+          const id = "eye" + UID++;
+          const svg = sv("svg", { viewBox: "-110 -110 220 220", width: size, height: size });
+          svg.classList.add("ent");
+          const defs = sv("defs", {}, svg);
+          const sg = sv("radialGradient", { id: id + "s", cx: "50%", cy: "45%", r: "55%" }, defs);
+          sv("stop", { offset: "0%", "stop-color": "#ffffff" }, sg);
+          sv("stop", { offset: "75%", "stop-color": "#ffe3e3" }, sg);
+          sv("stop", { offset: "100%", "stop-color": "#ff7d95" }, sg);
+          const ig = sv("radialGradient", { id: id + "i", cx: "50%", cy: "50%", r: "50%" }, defs);
+          sv("stop", { offset: "0%", "stop-color": "#fff200" }, ig);
+          sv("stop", { offset: "35%", "stop-color": "#ff00c8" }, ig);
+          sv("stop", { offset: "70%", "stop-color": "#00c8ff" }, ig);
+          sv("stop", { offset: "100%", "stop-color": "#16003a" }, ig);
+          const root = sv("g", {}, svg);
+          sv("circle", { r: 100, fill: `url(#${id}s)` }, root);
+          for (let k = 0; k < 11; k++) {
+            const a = r() * Math.PI * 2;
+            let x = Math.cos(a) * 99,
+              y = Math.sin(a) * 99,
+              d = `M${x.toFixed(1)},${y.toFixed(1)}`;
+            for (let j = 0; j < 4; j++) {
+              const rr = 99 - (j + 1) * 12;
+              const aa = a + (r() - 0.5) * 0.5;
+              x = Math.cos(aa) * rr;
+              y = Math.sin(aa) * rr;
+              d += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+            }
+            sv("path", { d, stroke: "#d0002a", "stroke-width": 2.4, fill: "none", opacity: 0.75 }, root);
+          }
+          const iris = sv("g", {}, root);
+          sv("circle", { r: 47, fill: `url(#${id}i)` }, iris);
+          for (let k = 0; k < 44; k++) {
+            const a = (k / 44) * Math.PI * 2;
+            const c = k % 2 ? "rgba(255,255,255,.45)" : "rgba(20,0,60,.4)";
+            sv(
+              "line",
+              {
+                x1: (Math.cos(a) * 17).toFixed(1),
+                y1: (Math.sin(a) * 17).toFixed(1),
+                x2: (Math.cos(a) * (38 + r() * 8)).toFixed(1),
+                y2: (Math.sin(a) * (38 + r() * 8)).toFixed(1),
+                stroke: c,
+                "stroke-width": 2.2,
+              },
+              iris,
+            );
+          }
+          sv("circle", { r: 47, fill: "none", stroke: "#0a0020", "stroke-width": 5 }, iris);
+          const pupil = sv("circle", { r: 19, fill: "#040008" }, iris);
+          sv("circle", { cx: -16, cy: -18, r: 9, fill: "#fff" }, iris);
+          sv("circle", { cx: 13, cy: 14, r: 4, fill: "#fff" }, iris);
+          return {
+            el: svg,
+            size,
+            set(st) {
+              iris.setAttribute("transform", `translate(${((st.lx || 0) * 36).toFixed(1)},${((st.ly || 0) * 36).toFixed(1)})`);
+              pupil.setAttribute("r", (st.pupil || 19).toFixed(1));
+              const b = clamp(st.blink || 0, 0, 0.97);
+              root.setAttribute("transform", `scale(1,${(1 - b).toFixed(3)})`);
+            },
+          };
+        }
+
+        function place(ent, x, y, s, rotDeg, opacity, extraFilter) {
+          const h = ent.el.getAttribute("height") ? +ent.el.getAttribute("height") : ent.size;
+          const w = ent.el.getAttribute("width") ? +ent.el.getAttribute("width") : ent.size;
+          ent.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px,${(y - h / 2).toFixed(1)}px) rotate(${rotDeg.toFixed(2)}deg) scale(${s.toFixed(4)})`;
+          ent.el.style.opacity = opacity.toFixed(3);
+          if (extraFilter !== undefined) ent.el.style.filter = extraFilter;
+        }
+
+        // echo = N copies of the same entity rendered at lagged times
+        function makeEcho(parent, n, factory) {
+          const copies = [];
+          for (let k = n - 1; k >= 0; k--) {
+            const e = factory(k);
+            parent.appendChild(e.el);
+            copies[k] = e;
+          }
+          return copies;
+        }
+
+        // ---------- build scenes ----------
+        // A: screaming face with rainbow echo trail
+        const aFaces = makeEcho($("a-faces"), 6, () => makeFace(0, 520));
+        // B: carousel dancers (7) with 2 echoes each
+        const bDancers = [];
+        const DPAL = [
+          { suit: "#ff2fa8", pants: "#1b1bff", arms: "#ffb38a", skin: "#ffb38a" },
+          { suit: "#00d9a3", pants: "#2a0040", arms: "#ffd9b8", skin: "#ffd9b8" },
+          { suit: "#fff200", pants: "#ff2d00", arms: "#c68a5b", skin: "#c68a5b" },
+          { suit: "#7a3dff", pants: "#00c8ff", arms: "#ffc2a1", skin: "#ffc2a1" },
+          { suit: "#ff6a00", pants: "#10002a", arms: "#8d5a3b", skin: "#8d5a3b" },
+          { suit: "#00c8ff", pants: "#ff00c8", arms: "#ffe0c7", skin: "#ffe0c7" },
+          { suit: "#b6ff00", pants: "#3a0070", arms: "#e0a47a", skin: "#e0a47a" },
+        ];
+        for (let i = 0; i < 7; i++) {
+          const wrap = document.createElement("div");
+          wrap.className = "layer";
+          $("b-dancers").appendChild(wrap);
+          bDancers.push({ wrap, copies: makeEcho(wrap, 3, () => makeDancer(DPAL[i], 300)) });
+        }
+        // C: converging face ring
+        const cFaces = [];
+        for (let i = 0; i < 10; i++) cFaces.push(makeEcho($("c-faces"), 2, () => makeFace(i, 200)));
+        // D: giant eye + aura echoes
+        const dEye = makeEcho($("d-eyes"), 4, (k) => makeEye(760, 7));
+        // E: spiral of sunglasses heads
+        const eFaces = [];
+        for (let i = 0; i < 12; i++) eFaces.push(makeEcho($("e-faces"), 2, () => makeFace(i + 1, 230)));
+        // F: drifting eyeballs
+        const fEyes = [];
+        for (let i = 0; i < 5; i++) fEyes.push(makeEcho($("f-eyes"), 3, () => makeEye(200, 20 + i)));
+        // G: cube + 2 echo cubes
+        const FACES = [
+          ["HTML", "conic-gradient(from 0deg, #ff00c8, #fff200, #00ffa0, #00c8ff, #7a3dff, #ff00c8)"],
+          ["CSS", "repeating-radial-gradient(circle at 50% 50%, #ff2fa8 0 30px, #1b1bff 30px 60px)"],
+          ["SVG", "repeating-linear-gradient(45deg, #b6ff00 0 40px, #7a00ff 40px 80px)"],
+          ["GLSL", "radial-gradient(circle at 30% 30%, #fff200, #ff6a00 40%, #ff00c8 80%)"],
+          ["GSAP", "repeating-conic-gradient(#00c8ff 0 15deg, #10002a 15deg 30deg)"],
+          ["MATH", "linear-gradient(160deg, #00ffa0, #00c8ff 50%, #7a3dff)"],
+        ];
+        const FT = [
+          "translateZ(230px)",
+          "rotateY(90deg) translateZ(230px)",
+          "rotateY(180deg) translateZ(230px)",
+          "rotateY(-90deg) translateZ(230px)",
+          "rotateX(90deg) translateZ(230px)",
+          "rotateX(-90deg) translateZ(230px)",
+        ];
+        const gCubes = [];
+        for (let k = 2; k >= 0; k--) {
+          const wrap = document.createElement("div");
+          wrap.className = "cube-wrap";
+          const cube = document.createElement("div");
+          cube.className = "cube";
+          FACES.forEach((f, i) => {
+            const d = document.createElement("div");
+            d.className = "cf";
+            d.textContent = f[0];
+            d.style.background = f[1];
+            d.style.transform = FT[i];
+            cube.appendChild(d);
+          });
+          wrap.appendChild(cube);
+          if (k > 0) wrap.style.filter = `hue-rotate(${k * 120}deg)`;
+          $("g-cubes").appendChild(wrap);
+          gCubes[k] = { wrap, cube };
+        }
+        // H: 2x2 mirror quads, each with a big dancer + echo
+        const hQuads = [];
+        const QT = ["", "scaleX(-1)", "scaleY(-1)", "scale(-1,-1)"];
+        for (let i = 0; i < 4; i++) {
+          const q = document.createElement("div");
+          q.className = "quad";
+          q.style.left = (i % 2) * 540 + "px";
+          q.style.top = Math.floor(i / 2) * 960 + "px";
+          q.style.transform = QT[i];
+          $("h-quads").appendChild(q);
+          hQuads.push(makeEcho(q, 3, () => makeDancer(DPAL[(i * 2) % 7], 470)));
+        }
+        // I: white room line-up, black suits + glow halos
+        const iDancers = [];
+        const IPAL = [
+          { suit: "#0b0b12", pants: "#0b0b12", arms: "#0b0b12", skin: "#ffcfae", hood: true },
+          { suit: "#0b0b12", pants: "#0b0b12", arms: "#0b0b12", skin: "#f2b48c", hood: true },
+          { suit: "#0b0b12", pants: "#0b0b12", arms: "#0b0b12", skin: "#ffd9c0", hood: true },
+          { suit: "#0b0b12", pants: "#0b0b12", arms: "#0b0b12", skin: "#c98f68", hood: true },
+          { suit: "#0b0b12", pants: "#0b0b12", arms: "#0b0b12", skin: "#ffc7a8", hood: true },
+        ];
+        for (let i = 0; i < 5; i++) {
+          const wrap = document.createElement("div");
+          wrap.className = "layer glow";
+          $("i-dancers").appendChild(wrap);
+          iDancers.push(makeEcho(wrap, 2, () => makeDancer(IPAL[i], 290)));
+        }
+        // J: spinning eye with 6 echoes
+        const jEye = makeEcho($("j-eyes"), 6, () => makeEye(520, 99));
+        // K: one face + one word per quarter-beat slot
+        const K_WORDS = ["SHADERS", "FRACTALS", "ECHOES", "MELT", "3D", "VERTIGO", "KALEIDO", "GLOW"];
+        const kFaces = [];
+        const kWordEls = [];
+        for (let i = 0; i < 8; i++) {
+          const f = makeFace(i, 380);
+          $("k-faces").appendChild(f.el);
+          kFaces.push(f);
+          const w = document.createElement("div");
+          w.className = "word" + (K_WORDS[i].length > 5 ? " sm" : "");
+          w.textContent = K_WORDS[i];
+          w.style.top = (i % 2 ? 1350 : 330) + "px";
+          const s0 = 7.825 + i * 0.1016;
+          w.dataset.in = s0.toFixed(4);
+          w.dataset.out = (s0 + 0.1016).toFixed(4);
+          $("k-words").appendChild(w);
+          kWordEls.push(w);
+        }
+        // L: small winking eye
+        const lEye = makeEye(170, 5);
+        $("l-eye").appendChild(lEye.el);
+
+        // split melt words into letters for drips
+        document.querySelectorAll(".word.split").forEach((w) => {
+          const txt = w.textContent;
+          w.textContent = "";
+          [...txt].forEach((ch) => {
+            const s = document.createElement("span");
+            s.className = "ch";
+            s.textContent = ch === " " ? " " : ch;
+            w.appendChild(s);
+          });
+        });
+        const WORDS = [...document.querySelectorAll(".word")].map((el, i) => ({
+          el,
+          tin: parseFloat(el.dataset.in),
+          tout: parseFloat(el.dataset.out),
+          rot: (hash1(i + 3) - 0.5) * 30,
+          dir: hash1(i + 11) > 0.5 ? 1 : -1,
+          chars: [...el.querySelectorAll(".ch")].map((c, j) => ({ c, rate: 0.4 + hash1(i * 17 + j) * 1.6 })),
+        }));
+
+        // grain texture (seeded, generated once)
+        (function () {
+          const c = document.createElement("canvas");
+          c.width = c.height = 192;
+          const x = c.getContext("2d");
+          const img = x.createImageData(192, 192);
+          const r = mulberry32(42);
+          for (let i = 0; i < img.data.length; i += 4) {
+            const v = Math.floor(r() * 255);
+            img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+            img.data[i + 3] = 255;
+          }
+          x.putImageData(img, 0, 0);
+          $("grain").style.backgroundImage = `url(${c.toDataURL()})`;
+        })();
+
+        // ---------- WebGL ----------
+        const canvas = $("gl");
+        const gl = canvas.getContext("webgl", { preserveDrawingBuffer: true, antialias: false, alpha: false });
+        const VS = "attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }";
+        const FS = `
+precision highp float;
+uniform vec2 uRes; uniform float uT, uModeA, uModeB, uMix, uTrans;
+uniform vec2 uC, uOff;
+uniform float uZoom,uRot,uKal,uCA,uPost,uInv,uHue,uExp,uSat,uWarp,uBeat,uSpeed;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x), mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x), f.y); }
+float fbm(vec2 p){ float v=0., a=.5; mat2 m=mat2(1.6,1.2,-1.2,1.6); for(int i=0;i<5;i++){ v+=a*noise(p); p=m*p; a*=.5; } return v; }
+vec3 rainbow(float t){ return .5+.5*cos(6.28318*(t+vec3(0.,.33,.67))); }
+mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+vec3 hueShift(vec3 c, float a){ vec3 k=vec3(.57735); float ca=cos(a); return c*ca + cross(k,c)*sin(a) + k*dot(k,c)*(1.-ca); }
+
+vec3 sFire(vec2 p, float t){
+  float r=length(p)+1e-4, a=atan(p.y,p.x);
+  vec2 q=vec2(a/6.28318*6., .35/r + t*1.8);
+  float n=fbm(q*vec2(1.,1.5) + vec2(0.,t*.5) + fbm(q*2.3 - t)*1.2);
+  float f=n*1.7 - .25 + .15/(r*6.+.5);
+  vec3 col=vec3(1.6*f, 1.1*f*f, .55*f*f*f*f);
+  col += vec3(1.,.75,.4)*exp(-r*7.)*1.2;
+  col += vec3(.7,0.,.25)*(1.-smoothstep(0.,.9,f))*.55;
+  return col;
+}
+vec3 sSky(vec2 p, float t){
+  float c=fbm(p*3.5 + vec2(t*.4, t*.1));
+  float c2=fbm(p*7. - vec2(t*.2,0.) + c);
+  vec3 sky=mix(vec3(.02,.3,1.), vec3(.35,.9,1.), smoothstep(-.5,.5,p.y + c*.3));
+  float cl=smoothstep(.45,.8, c*.7 + c2*.5);
+  vec3 col=mix(sky, vec3(1.05), cl);
+  float a=atan(p.y,p.x);
+  col += vec3(1.,.95,.7)*pow(max(0.,cos(a*10.+t*2.)),12.)*.3*(1.-cl);
+  return col;
+}
+vec3 sEyes(vec2 p, float t){
+  float r=length(p)+1e-4, a=atan(p.y,p.x);
+  float z=.22/r + t*2.2;
+  float id=floor(z), f=fract(z);
+  float h=hash(vec2(id,3.1));
+  float stri=.5+.5*sin(a*(30.+h*30.) + h*20. + fbm(vec2(a*4.,id))*4.);
+  vec3 iris=rainbow(id*.13 + h*.5 + t*.1)*(.55+.6*stri);
+  vec3 col;
+  if (f < .22) col=vec3(.03,0.,.07);
+  else if (f < .7) col=iris*(1.-.5*smoothstep(.6,.7,f));
+  else {
+    float vein=smoothstep(.75,1., sin(a*14. + fbm(vec2(a*6.,id*3.))*9.));
+    col=mix(vec3(1.,.96,.93), vec3(.9,.05,.1), vein*.8*smoothstep(.72,1.,f));
+  }
+  col *= smoothstep(0.,.06,r);
+  col += vec3(1.)*exp(-r*30.);
+  return col;
+}
+vec3 sSwirl(vec2 p, float t){
+  vec2 q=vec2(fbm(p*2.5 + t*.25), fbm(p*2.5 + vec2(5.2,1.3) - t*.2));
+  vec2 r=vec2(fbm(p*2.5 + 4.*q + vec2(1.7,9.2) + t*.35), fbm(p*2.5 + 4.*q + vec2(8.3,2.8) - t*.3));
+  float f=fbm(p*2.5 + 4.*r);
+  vec3 col=mix(vec3(.35,0.,.65), vec3(.1,1.,.35), clamp(f*f*2.2,0.,1.));
+  col=mix(col, vec3(1.,.45,0.), clamp(length(q)*.9 - .3,0.,1.));
+  col=mix(col, vec3(1.,.1,.7), clamp(r.x*r.x*1.4,0.,1.)*.6);
+  return col*1.25;
+}
+vec3 sJulia(vec2 p, float t){
+  vec2 z=p*2.6 + uOff; vec2 c=vec2(-.7269 + .004*sin(t*.9), .1889 + .004*cos(t*.7));
+  float n=0., m2=0.;
+  for(int i=0;i<110;i++){ z=vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c; m2=dot(z,z); if(m2>256.) break; n+=1.; }
+  if (n > 109.) return vec3(.03,0.,.08);
+  float sn=n - log2(log2(m2)) + 4.;
+  return rainbow(sn*.035 + t*.25)*1.15;
+}
+vec3 sWhite(vec2 p, float t){
+  float c=fbm(p*2.2 + vec2(t*.15,0.));
+  vec3 col=mix(vec3(1.), vec3(.7,.85,1.), smoothstep(-.1,.55,p.y)*.8);
+  col=mix(col, vec3(1.), smoothstep(.5,.75,c)*.8);
+  col += vec3(1.,.97,.9)*exp(-length(p-vec2(0.,.1))*3.)*.45;
+  col=mix(col, vec3(.95,.92,.97), smoothstep(-.18,-.24,p.y));
+  return col;
+}
+vec3 sChecker(vec2 p, float t){
+  float r=length(p)+1e-4, a=atan(p.y,p.x), lr=log(r);
+  float u=a/6.28318*10. + lr*2.5 + t*.6;
+  float v=lr*3.5 - t*2.4;
+  float ch=mod(floor(u)+floor(v), 2.);
+  vec3 col=mix(vec3(.02,0.,.05), rainbow(floor(v)*.07 + t*.3), ch);
+  col *= smoothstep(0.,.04,r);
+  return col*1.2;
+}
+vec3 sEnd(vec2 p, float t){
+  float r=length(p), a=atan(p.y,p.x);
+  vec3 col=mix(vec3(.1,0.,.2), vec3(0.), smoothstep(0.,.8,r));
+  float ring=exp(-abs(r - .3 - .02*sin(a*6.+t*4.))*40.);
+  col += rainbow(a/6.28318 + t*.5)*ring*1.3;
+  col += fbm(p*6.+t)*.08;
+  return col;
+}
+`;
+        // Software GL flattens uniform branches, so each (sceneA, sceneB, transition, CA) combo gets its own
+        // specialised program containing only the code it needs. Programs compile lazily and are cached.
+        const SCENE_FN = ["sFire", "sSky", "sEyes", "sSwirl", "sJulia", "sWhite", "sChecker", "sEnd"];
+        const TAIL = `
+vec2 xform(vec2 p){
+  p=rot(uRot)*p; p/=uZoom;
+  if (uWarp > 0.) p += uWarp*.03*vec2(sin(p.y*9.+uT*5.), cos(p.x*9.+uT*4.3));
+  if (uKal > .5) { float r=length(p), a=atan(p.y,p.x), seg=6.28318/uKal; a=mod(a,seg); a=abs(a-seg*.5); p=r*vec2(cos(a),sin(a)); }
+  return p;
+}
+vec3 composite(vec2 p0){
+  float t=uT*uSpeed;
+  vec2 p=xform(p0);
+  COMPOSITE_BODY
+}
+void main(){
+  vec2 p0=(gl_FragCoord.xy - .5*uRes)/uRes.y;
+  vec3 col;
+  CA_BODY
+  col *= uExp;
+  if (uHue != 0.) col=hueShift(col, uHue);
+  float l=dot(col, vec3(.299,.587,.114));
+  col=mix(vec3(l), col, uSat);
+  col=clamp(col, 0., 1.);
+  if (uPost > .5) col=floor(col*uPost + .5)/uPost;
+  col=mix(col, 1.-col, uInv);
+  col += uBeat*.12;
+  gl_FragColor=vec4(col,1.);
+}`;
+        function compositeBody(a, b, tr) {
+          const A = SCENE_FN[a],
+            B = SCENE_FN[b];
+          if (tr < 0) return `return ${A}(p,t);`;
+          if (tr === 0) return `return mix(${A}(p,t), ${B}(p,t), uMix);`;
+          if (tr === 1)
+            return `float d=length(p0-uC), R=uMix*1.25;
+  vec3 col = d < R ? ${B}(p,t) : ${A}(p,t);
+  return col + vec3(1.,.9,.8)*exp(-abs(d-R)*60.)*1.5;`;
+          if (tr === 2)
+            return `float sl=floor((p0.y+.5)*28.);
+  vec2 q=p + vec2((hash(vec2(sl,1.3))-.5)*.3*sin(uMix*3.1416), 0.);
+  return hash(vec2(sl,7.7)) < uMix ? ${B}(q,t) : ${A}(q,t);`;
+          return `float r=length(p0);
+  vec2 q=rot(sin(uMix*3.1416)*10.*max(0.,.7-r))*p;
+  return fbm(p0*8.) < uMix*1.2-.1 ? ${B}(q,t) : ${A}(q,t);`;
+        }
+        function sh(type, src) {
+          const s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+          return s;
+        }
+        const UNAMES = ["uRes", "uT", "uMix", "uC", "uOff", "uZoom", "uRot", "uKal", "uCA", "uPost", "uInv", "uHue", "uExp", "uSat", "uWarp", "uBeat", "uSpeed"];
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        const PROGS = {};
+        function program(a, b, tr, ca) {
+          const key = `${a}_${b}_${tr}_${ca}`;
+          if (PROGS[key]) return PROGS[key];
+          const caBody = ca
+            ? "col.r=composite(p0*(1.+uCA)).r; col.g=composite(p0).g; col.b=composite(p0*(1.-uCA)).b;"
+            : "col=composite(p0);";
+          const fs = FS + TAIL.replace("COMPOSITE_BODY", compositeBody(a, b, tr)).replace("CA_BODY", caBody);
+          const prog = gl.createProgram();
+          gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+          gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+          gl.linkProgram(prog);
+          const U = { prog, loc: gl.getAttribLocation(prog, "p") };
+          UNAMES.forEach((n) => (U[n] = gl.getUniformLocation(prog, n)));
+          PROGS[key] = U;
+          return U;
+        }
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
+        function glState(t) {
+          const st = { mA: 0, mB: 0, mix: 0, tr: 0, c: [0, 0], off: [0, 0], zoom: 1, rot: 0, kal: 0, ca: 0.004, post: 0, inv: 0, hue: 0, exp: 1.2, sat: 1.35, warp: 0, speed: 1 };
+          const sc = sceneAt(t);
+          const lt = t - sc.s;
+          const bp = pulse(t, 9);
+          st.mA = sc.mode;
+          switch (sc.id) {
+            case "A":
+              st.zoom = 1 + lt * 0.8;
+              st.rot = lt * 1.2;
+              st.warp = 0.4;
+              st.post = 7;
+              st.exp = 1.25;
+              break;
+            case "B":
+              st.kal = t < 1.3 ? 6 : 10;
+              st.rot = lt * 2.2;
+              st.zoom = 1.4 - lt * 0.4;
+              st.hue = t < 1.3 ? 0 : 2.2;
+              st.post = 6;
+              st.exp = 1.3;
+              break;
+            case "C": {
+              const k = Math.min(3, Math.floor(lt / Q));
+              st.mA = [6, 2, 0, 4][k];
+              st.kal = [0, 8, 5, 0][k];
+              st.rot = lt * 6 + k;
+              st.zoom = 1 + lt * 3;
+              st.hue = k * 1.3;
+              st.post = 5;
+              st.ca = 0.02;
+              st.off = JULIA_TARGET;
+              break;
+            }
+            case "D":
+              st.rot = -lt * 1.4;
+              st.warp = 0.25;
+              st.ca = 0.012;
+              st.exp = 1.3;
+              st.inv = t >= 2.531 && t < 2.6 ? 1 : 0;
+              break;
+            case "E":
+              st.rot = lt * 2.8;
+              st.warp = 0.6;
+              st.hue = lt * 2 + (t >= 3.344 ? 3.14 : 0);
+              st.post = 5;
+              st.speed = 1.4;
+              break;
+            case "F":
+              st.rot = Math.sin(lt * 3) * 0.35;
+              st.zoom = 1.25;
+              st.hue = Math.floor(lt / 0.418) * 1.1;
+              st.ca = 0.015;
+              st.post = 6;
+              break;
+            case "G":
+              st.kal = 3;
+              st.hue = lt * 4;
+              st.rot = -lt * 1.5;
+              st.zoom = 0.8;
+              st.post = 6;
+              st.sat = 1.6;
+              break;
+            case "H":
+              st.kal = 4;
+              st.inv = beatIndex(t) % 2;
+              st.post = 3;
+              st.ca = 0.03;
+              st.rot = lt * 3;
+              st.zoom = 1.3;
+              break;
+            case "I":
+              st.zoom = 1 + lt * 0.9;
+              st.warp = 0.2;
+              st.exp = 1.12;
+              st.sat = 1.1;
+              break;
+            case "J":
+              st.zoom = Math.exp(lt * 2.6);
+              st.rot = lt * 1.5;
+              st.ca = 0.01;
+              st.off = JULIA_TARGET;
+              break;
+            case "K": {
+              const k = Math.min(7, Math.floor(lt / 0.1016));
+              st.mA = [0, 1, 2, 3, 4, 5, 6, 2][k];
+              st.kal = [0, 6, 0, 4, 0, 0, 8, 0][k];
+              st.hue = k * 0.9;
+              st.post = [5, 6, 0, 6, 0, 0, 4, 0][k];
+              st.rot = k * 0.7 + lt * 3;
+              st.zoom = 1 + (k % 3) * 0.3;
+              st.off = JULIA_TARGET;
+              st.ca = 0.02;
+              break;
+            }
+            case "L":
+              st.zoom = 1 + lt * 0.3;
+              break;
+          }
+          st.zoom *= 1 + 0.1 * bp;
+          st.beat = bp * 0.6;
+          for (const tr of TRANS) {
+            if (t >= tr.s && t < tr.e) {
+              st.mA = tr.a;
+              st.mB = tr.b;
+              st.mix = smooth(tr.s, tr.e, t);
+              st.tr = tr.type;
+              if (tr.c) st.c = tr.c;
+            }
+          }
+          return st;
+        }
+
+        function drawGL(t) {
+          const s = glState(t);
+          const U = s.mix > 0 ? program(s.mA, s.mB, s.tr, s.ca > 0) : program(s.mA, s.mA, -1, s.ca > 0);
+          gl.useProgram(U.prog);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.enableVertexAttribArray(U.loc);
+          gl.vertexAttribPointer(U.loc, 2, gl.FLOAT, false, 0, 0);
+          gl.uniform2f(U.uRes, canvas.width, canvas.height);
+          gl.uniform1f(U.uT, t);
+          gl.uniform1f(U.uMix, s.mix);
+          gl.uniform2f(U.uC, s.c[0], s.c[1]);
+          gl.uniform2f(U.uOff, s.off[0], s.off[1]);
+          gl.uniform1f(U.uZoom, s.zoom);
+          gl.uniform1f(U.uRot, s.rot);
+          gl.uniform1f(U.uKal, s.kal);
+          gl.uniform1f(U.uCA, s.ca);
+          gl.uniform1f(U.uPost, s.post);
+          gl.uniform1f(U.uInv, s.inv);
+          gl.uniform1f(U.uHue, s.hue);
+          gl.uniform1f(U.uExp, s.exp);
+          gl.uniform1f(U.uSat, s.sat);
+          gl.uniform1f(U.uWarp, s.warp);
+          gl.uniform1f(U.uBeat, s.beat);
+          gl.uniform1f(U.uSpeed, s.speed);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+
+        // ---------- DOM renderers ----------
+        function renderWords(t) {
+          for (const w of WORDS) {
+            if (t < w.tin || t >= w.tout) {
+              w.el.style.opacity = "0";
+              continue;
+            }
+            const u = t - w.tin;
+            const k = Math.exp(-u * 20);
+            const s = 1 + 1.7 * k - 0.08 * Math.sin(u * 30) * Math.exp(-u * 8);
+            const r = w.rot * k + Math.sin(t * 37 + w.rot) * 1.6 * Math.exp(-u * 5);
+            const jx = Math.sin(t * 61 + w.rot) * 10 * Math.exp(-u * 7);
+            const bp = pulse(t, 12);
+            w.el.style.opacity = "1";
+            w.el.style.transform = `translate(${jx.toFixed(1)}px,0) rotate(${r.toFixed(2)}deg) scale(${(s * (1 + 0.06 * bp)).toFixed(4)})`;
+            w.el.style.setProperty("--ca", (5 + 34 * k + 10 * bp).toFixed(1) + "px");
+            if (w.chars.length) {
+              for (const ch of w.chars) {
+                const d = Math.max(0, u - 0.08) * ch.rate;
+                ch.c.style.transform = `translateY(${(d * 120).toFixed(1)}px) scaleY(${(1 + d * 1.6).toFixed(3)})`;
+              }
+            }
+          }
+          const melt = t >= 3.738 && t < 4.551 ? ((t - 3.738) % 0.418) / 0.418 : 0;
+          $("melt-disp").setAttribute("scale", (8 + melt * 70 + pulse(t, 10) * 30).toFixed(1));
+          $("melt-turb").setAttribute("baseFrequency", `0.008 ${(0.02 + melt * 0.03).toFixed(4)}`);
+        }
+
+        function faceState(t, seed, base) {
+          const bp = pulse(t, 7);
+          return {
+            lx: Math.sin(t * 13 + seed * 3.1),
+            ly: Math.cos(t * 11 + seed * 1.7) * 0.7,
+            open: base + (1 - base) * bp,
+            brow: 0.6 + 0.4 * Math.sin(t * 20 + seed),
+            glasses: false,
+          };
+        }
+
+        function renderA(t) {
+          aFaces.forEach((f, k) => {
+            const tt = Math.max(0, t - k * 0.04);
+            const lt = tt;
+            let s = 0.45 + lt * 1.1 + 0.25 * pulse(tt, 10);
+            if (lt > 0.72) s += Math.pow((lt - 0.72) / 0.186, 3) * 9;
+            const x = 540 + Math.sin(lt * 7) * 70;
+            const y = 980 + Math.cos(lt * 5) * 40 - (lt > 0.72 ? ((lt - 0.72) / 0.186) * 520 : 0);
+            const rot = Math.sin(lt * 9) * 14 + (lt > 0.72 ? (lt - 0.72) * 120 : 0);
+            const st = faceState(tt, 1, 0.35);
+            if (lt > 0.6) st.open = 1;
+            f.set(st);
+            const op = k === 0 ? 1 : 0.55 * (1 - k / 6);
+            place(f, x, y, s, rot, op, k === 0 ? "drop-shadow(0 0 18px #fff) drop-shadow(0 0 40px #ffcc66)" : `hue-rotate(${k * 55}deg) saturate(2)`);
+          });
+        }
+
+        function renderB(t) {
+          const lt = t - 0.906;
+          bDancers.forEach((d, i) => {
+            d.copies.forEach((c, k) => {
+              const tt = t - k * 0.05;
+              const th = (tt - 0.906) * 2.6 + (i * Math.PI * 2) / 7;
+              const depth = Math.sin(th);
+              const x = 540 + Math.cos(th) * 360;
+              const y = 1180 + depth * 190;
+              const s = 0.72 + 0.38 * depth + 0.08 * pulse(tt, 10);
+              c.set(tt * 15 + i * 1.3, 1);
+              const op = k === 0 ? 1 : 0.45 * (1 - k / 3);
+              place(c, x, y, s, Math.sin(tt * 8 + i) * 10, op, k === 0 ? "drop-shadow(0 0 8px #fff) drop-shadow(0 0 22px #fff)" : `hue-rotate(${k * 90}deg) blur(2px)`);
+            });
+            d.wrap.style.zIndex = String(Math.round(100 + Math.sin(lt * 2.6 + (i * Math.PI * 2) / 7) * 50));
+          });
+        }
+
+        function renderC(t) {
+          const lt = t - 1.695;
+          const k = lt / 0.418;
+          cFaces.forEach((copies, i) => {
+            copies.forEach((f, e) => {
+              const tt = t - e * 0.03;
+              const l2 = Math.max(0, tt - 1.695);
+              const a = (i / 10) * Math.PI * 2 + l2 * (6 + l2 * 30);
+              const R = 520 * (1 - Math.pow(l2 / 0.418, 1.4));
+              f.set(faceState(tt, i, 0.9));
+              place(f, 540 + Math.cos(a) * R, 960 + Math.sin(a) * R * 1.3, 0.8 + k * 0.5, (a * 180) / Math.PI + 90, e ? 0.4 : 1, e ? "hue-rotate(160deg)" : "");
+            });
+          });
+        }
+
+        const SACC = [
+          [2.113, 0, 0],
+          [2.32, 0.7, -0.3],
+          [2.531, -0.6, 0.45],
+          [2.73, 0.25, 0.7],
+          [2.85, 0, 0],
+        ];
+        function renderD(t) {
+          let lx = 0,
+            ly = 0;
+          for (let i = 0; i < SACC.length; i++) {
+            if (t >= SACC[i][0]) {
+              const prev = SACC[Math.max(0, i - 1)];
+              const k = smooth(SACC[i][0], SACC[i][0] + 0.06, t);
+              lx = lerp(prev[1], SACC[i][1], k);
+              ly = lerp(prev[2], SACC[i][2], k);
+            }
+          }
+          const blink = t > 2.84 && t < 2.92 ? Math.sin(((t - 2.84) / 0.08) * Math.PI) : 0;
+          dEye.forEach((e, k) => {
+            const tt = t - k * 0.035;
+            const bp = pulse(tt, 8);
+            e.set({ lx, ly, pupil: 14 + 16 * bp, blink });
+            const s = (0.9 + 0.12 * bp) * (1 + k * 0.18) * (0.6 + 0.4 * smooth(2.113, 2.25, t));
+            place(e, 540, 900, s, Math.sin(tt * 3) * 6 + k * 8, k === 0 ? 1 : 0.28 - k * 0.05, k === 0 ? "drop-shadow(0 0 30px #fff) drop-shadow(0 0 70px #ff00c8)" : `hue-rotate(${k * 80}deg) blur(${k * 3}px)`);
+          });
+          [
+            ["d-shock1", 2.113],
+            ["d-shock2", 2.531],
+          ].forEach(([id, t0]) => {
+            const u = t - t0;
+            const el = $(id);
+            if (u < 0 || u > 0.45) {
+              el.style.opacity = "0";
+              return;
+            }
+            el.style.opacity = (1 - u / 0.45).toFixed(3);
+            el.style.transform = `scale(${(0.3 + u * 7).toFixed(3)})`;
+          });
+        }
+
+        function renderE(t) {
+          const flip = t >= 3.344;
+          eFaces.forEach((copies, i) => {
+            copies.forEach((f, e) => {
+              const tt = t - e * 0.045;
+              const lt = tt - 2.926;
+              const phi = (i / 12) * Math.PI * 2 + lt * 2.4;
+              const R = 170 + (i % 3) * 140 + 60 * Math.sin(lt * 4 + i);
+              const st = faceState(tt, i + 5, 0.2);
+              st.glasses = flip ? i % 2 === 1 : i % 2 === 0;
+              f.set(st);
+              const s = 0.75 + 0.25 * Math.sin(lt * 6 + i) + 0.15 * pulse(tt, 9);
+              place(f, 540 + Math.cos(phi) * R, 960 + Math.sin(phi) * R * 1.45, s, (phi * 180) / Math.PI + 90 + (flip ? 180 : 0) + Math.sin(tt * 12 + i) * 12, e ? 0.35 : 1, e ? "hue-rotate(200deg) blur(1px)" : "drop-shadow(0 0 10px #fff)");
+            });
+          });
+        }
+
+        function renderF(t) {
+          fEyes.forEach((copies, i) => {
+            copies.forEach((f, e) => {
+              const tt = t - e * 0.06;
+              const lt = tt - 3.738;
+              const x = 540 + Math.sin(lt * (1.5 + i * 0.4) + i * 2) * 380;
+              const y = 300 + i * 330 + Math.cos(lt * 2 + i) * 80;
+              f.set({ lx: Math.sin(tt * 9 + i), ly: Math.cos(tt * 7 + i), pupil: 12 + 14 * pulse(tt, 8), blink: 0 });
+              place(f, x, y, 0.8 + 0.2 * Math.sin(lt * 5 + i), lt * 90 * (i % 2 ? 1 : -1), e ? 0.35 * (1 - e / 3) : 1, e ? `hue-rotate(${e * 100}deg)` : "drop-shadow(0 0 16px #b6ff00)");
+            });
+          });
+        }
+
+        function renderG(t) {
+          gCubes.forEach((c, k) => {
+            const tt = t - k * 0.06;
+            const lt = Math.max(0, tt - 4.551);
+            const bp = pulse(tt, 9);
+            const rx = -20 + lt * 160 + Math.sin(lt * 3) * 20;
+            const ry = 30 + lt * 260;
+            const s = (0.6 + 0.4 * smooth(4.551, 4.7, tt)) * (1 + 0.14 * bp) * (1 + k * 0.1);
+            c.cube.style.transform = `scale(${s.toFixed(4)}) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+            c.wrap.style.opacity = k === 0 ? "1" : (0.3 - k * 0.08).toFixed(2);
+          });
+        }
+
+        function renderH(t) {
+          hQuads.forEach((copies, i) => {
+            copies.forEach((d, e) => {
+              const tt = t - e * 0.05;
+              const lt = tt - 5.387;
+              d.set(tt * 18, 1.2);
+              const bp = pulse(tt, 10);
+              place(d, 300 + Math.sin(lt * 6) * 60, 560 + Math.cos(lt * 8) * 30, 1 + 0.15 * bp, Math.sin(lt * 10) * 14, e ? 0.4 * (1 - e / 3) : 1, e ? `hue-rotate(${120 * e}deg) blur(2px)` : "drop-shadow(0 0 10px #fff) drop-shadow(0 0 30px #fff)");
+            });
+          });
+        }
+
+        function renderI(t) {
+          const lt = t - 6.2;
+          iDancers.forEach((copies, i) => {
+            copies.forEach((d, e) => {
+              const tt = t - e * 0.08;
+              d.set(tt * 13 + i * 0.9, 1.1);
+              const x = 540 + (i - 2) * 205 * (1 - lt * 0.12);
+              const y = 1250 - Math.abs(i - 2) * 40;
+              const s = (1 - lt * 0.2) * (i === 2 ? 1.25 : 1) + 0.05 * pulse(tt, 9);
+              place(d, x, y, s, Math.sin(tt * 7 + i) * 8, e ? 0.35 : 1, e ? "blur(3px)" : "");
+            });
+          });
+        }
+
+        function renderJ(t) {
+          jEye.forEach((e, k) => {
+            const tt = t - k * 0.03;
+            const lt = Math.max(0, tt - 7.012);
+            e.set({ lx: Math.sin(tt * 6) * 0.6, ly: Math.cos(tt * 5) * 0.6, pupil: 10 + 22 * pulse(tt, 7), blink: 0 });
+            const s = 0.3 + lt * 1.4 + 0.1 * pulse(tt, 9);
+            place(e, 540, 960, s, lt * 540, k === 0 ? 1 : 0.5 * (1 - k / 6), k === 0 ? "drop-shadow(0 0 30px #fff)" : `hue-rotate(${k * 60}deg)`);
+          });
+        }
+
+        function renderK(t) {
+          const k = Math.min(7, Math.floor((t - 7.825) / 0.1016));
+          kFaces.forEach((f, i) => {
+            if (i !== k) {
+              f.el.style.opacity = "0";
+              return;
+            }
+            const r1 = hash1(i * 7 + 1),
+              r2 = hash1(i * 7 + 2),
+              r3 = hash1(i * 7 + 3);
+            f.set(faceState(t, i, 0.8));
+            place(f, 250 + r1 * 580, 700 + r2 * 520, 1.4 + r3 * 0.8, (r3 - 0.5) * 70, 1, "drop-shadow(0 0 20px #fff)");
+          });
+        }
+
+        function renderL(t) {
+          const lt = t - 8.638;
+          const k = Math.exp(-lt * 14);
+          const title = $("end-title");
+          title.style.transform = `scale(${(1 + 0.9 * k + lt * 0.12).toFixed(4)}) rotate(${(-8 * k).toFixed(2)}deg)`;
+          title.style.setProperty("--ca", (6 + 40 * k).toFixed(1) + "px");
+          $("end-x").style.opacity = smooth(8.7, 8.76, t).toFixed(3);
+          $("end-x").style.transform = `translateY(${(30 * (1 - smooth(8.7, 8.8, t))).toFixed(1)}px)`;
+          $("end-sub").style.opacity = smooth(8.78, 8.84, t).toFixed(3);
+          const wink = t > 8.94 && t < 9.02 ? Math.sin(((t - 8.94) / 0.08) * Math.PI) : 0;
+          lEye.set({ lx: 0, ly: 0.2, pupil: 16, blink: wink });
+          place(lEye, 540, 600, 1 + 0.2 * k, 0, smooth(8.66, 8.72, t), "drop-shadow(0 0 20px #ff00c8)");
+        }
+
+        function renderCam(t) {
+          const sc = sceneAt(t);
+          const lt = t - sc.s;
+          const bp = pulse(t, 9);
+          const shakeAmp = { A: 6, B: 4, C: 6 + lt * 60, D: 4 + 14 * bp, E: 5, F: 4, G: 0, H: 14, I: 3, J: 6, K: 18, L: 0 }[sc.id] || 0;
+          const sx = (Math.sin(t * 53.1) + Math.sin(t * 31.7 + 1.3)) * shakeAmp;
+          const sy = (Math.cos(t * 47.3) + Math.sin(t * 29.1 + 0.4)) * shakeAmp;
+          let rz = Math.sin(t * 2.1) * 2.5;
+          let s = 1 + 0.07 * bp;
+          if (sc.id === "C") {
+            rz += -lt * 50;
+            s *= 1 + lt * 0.7;
+          }
+          if (sc.id === "E") rz += Math.sin(lt * 5) * 10;
+          if (sc.id === "G") rz += 360 * easeInOut(clamp(lt / 0.836, 0, 1));
+          if (sc.id === "J") rz += lt * 20;
+          if (sc.id === "L") rz = 0;
+          $("stage").style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${rz.toFixed(2)}deg) scale(${s.toFixed(4)})`;
+          canvas.style.transform = `translate(${(sx * 0.5).toFixed(1)}px,${(sy * 0.5).toFixed(1)}px) scale(${(1.06 + 0.04 * bp).toFixed(4)})`;
+        }
+
+        function renderOverlays(t) {
+          let f = 0;
+          for (const [t0, amp, dec] of FLASHES) if (t >= t0) f = Math.max(f, amp * Math.exp(-(t - t0) * dec));
+          $("flash").style.opacity = clamp(f, 0, 1).toFixed(3);
+          const fr = Math.round(t * FPS);
+          const r = mulberry32(fr + 1);
+          $("grain").style.backgroundPosition = `${Math.floor(r() * 384)}px ${Math.floor(r() * 384)}px`;
+          const ss = Math.floor(fr / FPS),
+            ff = fr % FPS;
+          $("hud-tc").textContent = `00:00:${String(ss).padStart(2, "0")}:${String(ff).padStart(2, "0")}`;
+          $("hud-fx").textContent = sceneAt(t).fx;
+          $("rec-dot").style.opacity = Math.floor(t * 2.4) % 2 ? "0.25" : "1";
+        }
+
+        function renderAt(t) {
+          t = clamp(t, 0, DUR);
+          drawGL(t);
+          renderCam(t);
+          renderWords(t);
+          renderA(t);
+          renderB(t);
+          renderC(t);
+          renderD(t);
+          renderE(t);
+          renderF(t);
+          renderG(t);
+          renderH(t);
+          renderI(t);
+          renderJ(t);
+          renderK(t);
+          renderL(t);
+          renderOverlays(t);
+        }
+
+        // One paused GSAP timeline; a linear proxy tween drives the procedural renderer on every seek.
+        const tl = gsap.timeline({ paused: true });
+        const clock = { t: 0 };
+        tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+        window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+        renderAt(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
