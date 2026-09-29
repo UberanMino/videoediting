@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>UKG Type Beat Thumbnail</title>
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Anton";
+        src: url("assets/fonts/anton-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: "Archivo Black";
+        src: url("assets/fonts/archivo-black-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: "Pinyon Script";
+        src: url("assets/fonts/pinyon-script-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: "Space Mono";
+        src: url("assets/fonts/space-mono-latin-700-normal.woff2") format("woff2");
+        font-weight: 700;
+      }
+
+      :root {
+        --ink: #0b0420;
+        --violet: #6a1cff;
+        --pink: #ff2e9a;
+        --hot: #ff5fb8;
+        --ice: #bff4ff;
+        --white: #fff6fb;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* ---------- background: dancing duo, deep duotone, tilted ---------- */
+      .bg-wrap {
+        position: absolute;
+        inset: -120px;
+      }
+      #bg-duo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 50% 30%;
+        opacity: 0.7;
+      }
+
+      /* ---------- hero: three girls, dizzy double-vision ---------- */
+      .hero-wrap {
+        position: absolute;
+        top: 0;
+        right: -40px;
+        width: 1300px;
+        height: 1080px;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
+        mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
+      }
+      .hero-layer {
+        position: absolute;
+        inset: 0;
+      }
+      .hero-layer img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 62% 40%;
+      }
+      .ghost {
+        mix-blend-mode: screen;
+      }
+      #ghost-a {
+        opacity: 0.36;
+      }
+      #ghost-b {
+        opacity: 0.42;
+      }
+
+      /* soft club light blooms */
+      .bloom {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(60px);
+        mix-blend-mode: screen;
+      }
+      #bloom-pink {
+        width: 620px;
+        height: 620px;
+        left: 980px;
+        top: -220px;
+        background: radial-gradient(circle, rgba(255, 46, 154, 0.75), rgba(255, 46, 154, 0) 70%);
+      }
+      #bloom-violet {
+        width: 760px;
+        height: 760px;
+        left: -260px;
+        top: 520px;
+        background: radial-gradient(circle, rgba(106, 28, 255, 0.8), rgba(106, 28, 255, 0) 70%);
+      }
+
+      /* ---------- type block ---------- */
+      .type {
+        position: absolute;
+        left: 86px;
+        top: 150px;
+        width: 900px;
+        height: 800px;
+      }
+      .tag {
+        position: absolute;
+        left: 6px;
+        top: 0;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 64px;
+        padding: 0 28px;
+        background: var(--pink);
+        color: var(--white);
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+        font-size: 30px;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        border-radius: 999px;
+        box-shadow: 0 0 40px rgba(255, 46, 154, 0.65);
+      }
+      .tag .x {
+        color: var(--ink);
+      }
+
+      .title-stack {
+        position: absolute;
+        left: -10px;
+        top: 70px;
+        width: 900px;
+        height: 460px;
+      }
+      .title {
+        position: absolute;
+        left: 0;
+        top: 0;
+        font-family: "Anton", sans-serif;
+        font-size: 400px;
+        line-height: 1;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+      }
+      /* echo copies behind the main word = drunk double vision */
+      #echo-violet {
+        color: var(--violet);
+        opacity: 0.9;
+      }
+      #echo-pink {
+        color: transparent;
+        -webkit-text-stroke: 4px var(--pink);
+      }
+      #title-main {
+        background: linear-gradient(
+          180deg,
+          #ffffff 0%,
+          #ffe3f3 38%,
+          #ff9fd2 50%,
+          #ffffff 54%,
+          #d8f7ff 78%,
+          #ffffff 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 10px 0 rgba(11, 4, 32, 0.55)) drop-shadow(0 0 34px rgba(255, 46, 154, 0.55));
+      }
+
+      .script {
+        position: absolute;
+        left: 250px;
+        top: 440px;
+        font-family: "Pinyon Script", cursive;
+        font-size: 190px;
+        line-height: 1;
+        color: var(--hot);
+        white-space: nowrap;
+        text-shadow:
+          0 0 18px rgba(255, 46, 154, 0.9),
+          0 0 60px rgba(255, 46, 154, 0.6),
+          4px 6px 0 var(--ink);
+      }
+
+      .strip {
+        position: absolute;
+        left: 6px;
+        top: 700px;
+        display: flex;
+        gap: 14px;
+      }
+      .chip {
+        height: 58px;
+        padding: 0 22px;
+        display: flex;
+        align-items: center;
+        font-family: "Archivo Black", sans-serif;
+        font-size: 30px;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+        background: var(--ice);
+        white-space: nowrap;
+      }
+      .chip.dark {
+        background: var(--ink);
+        color: var(--white);
+        border: 3px solid var(--white);
+      }
+
+      /* ---------- Y2K decorations ---------- */
+      .spark {
+        position: absolute;
+        filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 30px rgba(255, 46, 154, 0.8));
+      }
+      #spark-1 {
+        left: 1220px;
+        top: 110px;
+        width: 120px;
+        height: 120px;
+      }
+      #spark-2 {
+        left: 1790px;
+        top: 560px;
+        width: 76px;
+        height: 76px;
+      }
+      #spark-3 {
+        left: 840px;
+        top: 150px;
+        width: 64px;
+        height: 64px;
+      }
+      #spark-4 {
+        left: 1450px;
+        top: 900px;
+        width: 54px;
+        height: 54px;
+      }
+
+      #ring {
+        position: absolute;
+        left: 1580px;
+        top: 60px;
+        width: 290px;
+        height: 290px;
+      }
+      #ring text {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+        font-size: 24px;
+        letter-spacing: 0;
+        fill: var(--white);
+      }
+
+      /* frame edge */
+      .frame {
+        position: absolute;
+        inset: 26px;
+        border: 3px solid rgba(255, 246, 251, 0.75);
+        border-radius: 22px;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-ei7x" id="root" data-composition-id="main" data-start="0" data-duration="3" data-width="1920" data-height="1080">
+      <!-- BACKGROUND -->
+      <section data-hf-id="hf-3z6v" id="scene-bg" class="clip" data-start="0" data-duration="3" data-track-index="0">
+        <div data-hf-id="hf-2uoy" class="bg-wrap" id="bg-wrap">
+          <img data-color-grading="{&quot;preset&quot;:null,&quot;intensity&quot;:1,&quot;adjust&quot;:{&quot;exposure&quot;:-0.2,&quot;contrast&quot;:0.25,&quot;highlights&quot;:0,&quot;shadows&quot;:0,&quot;whites&quot;:0,&quot;blacks&quot;:0,&quot;temperature&quot;:0,&quot;tint&quot;:0,&quot;vibrance&quot;:0,&quot;saturation&quot;:-1},&quot;details&quot;:{&quot;vignette&quot;:0,&quot;vignetteMidpoint&quot;:0.5,&quot;vignetteRoundness&quot;:0,&quot;vignetteFeather&quot;:0.65,&quot;grain&quot;:0,&quot;grainSize&quot;:0.25,&quot;grainRoughness&quot;:0.5},&quot;effects&quot;:{&quot;blur&quot;:0.35,&quot;pixelate&quot;:0,&quot;chromaBleed&quot;:0,&quot;tapeDamage&quot;:0,&quot;tapeTracking&quot;:0,&quot;tapeNoise&quot;:1,&quot;tapeSpeed&quot;:0.5,&quot;filmArtifacts&quot;:0,&quot;halftone&quot;:0,&quot;halftoneSize&quot;:0,&quot;twoInkPrint&quot;:0,&quot;twoInkPrintSize&quot;:0,&quot;ascii&quot;:0,&quot;asciiSize&quot;:0.06578947368421052,&quot;asciiInvert&quot;:0,&quot;asciiStyle&quot;:0,&quot;asciiColor&quot;:1,&quot;asciiRotation&quot;:0,&quot;dither&quot;:0,&quot;ditherSize&quot;:0,&quot;bloom&quot;:0,&quot;bloomRadius&quot;:8,&quot;monoScreen&quot;:0,&quot;monoScreenSize&quot;:0,&quot;monoScreenAngle&quot;:0,&quot;monoScreenSpread&quot;:0,&quot;monoScreenShape&quot;:0,&quot;monoScreenInvert&quot;:0,&quot;scanlines&quot;:0,&quot;scanlineCount&quot;:0,&quot;scanlineSoftness&quot;:0,&quot;chromaticAberration&quot;:0,&quot;chromaticAngle&quot;:0,&quot;crtCurvature&quot;:0,&quot;digitalGlitch&quot;:0,&quot;digitalGlitchColorSplit&quot;:0,&quot;digitalGlitchLineTear&quot;:0,&quot;digitalGlitchPixelate&quot;:0,&quot;digitalGlitchBlockAmount&quot;:0,&quot;digitalGlitchBlockDisplacement&quot;:0,&quot;digitalGlitchBlockOpacity&quot;:0,&quot;digitalGlitchSpeed&quot;:0,&quot;engraving&quot;:0,&quot;engravingSpacing&quot;:0.4117647058823529,&quot;engravingMinThickness&quot;:0.2,&quot;engravingMaxThickness&quot;:0.4571428571428572,&quot;engravingAngle&quot;:0.25,&quot;engravingContrast&quot;:0.4666666666666667,&quot;engravingSharpness&quot;:0.59,&quot;engravingWave&quot;:0.2,&quot;engravingWaveFrequency&quot;:0.2222222222222222,&quot;crosshatch&quot;:0,&quot;crosshatchSpacing&quot;:0.28,&quot;crosshatchThickness&quot;:0.25,&quot;crosshatchAngle&quot;:0.25,&quot;crosshatchContrast&quot;:0.3333333333333333,&quot;crosshatchEdges&quot;:0.5,&quot;crosshatchLineWeight&quot;:0,&quot;crosshatchWave&quot;:0.33,&quot;crosshatchWaveFrequency&quot;:0.2222222222222222,&quot;kuwahara&quot;:0,&quot;kuwaharaRadius&quot;:0.14285714285714285,&quot;kuwaharaSharpness&quot;:0.3125,&quot;kuwaharaSaturation&quot;:0.5},&quot;lut&quot;:null,&quot;colorSpace&quot;:&quot;rec709&quot;,&quot;curves&quot;:{&quot;master&quot;:[[0,0],[1,1]],&quot;red&quot;:[[0,0.03],[0.5,0.3],[1,0.85]],&quot;green&quot;:[[0,0],[0.5,0.05],[1,0.3]],&quot;blue&quot;:[[0,0.14],[0.5,0.6],[1,1]]}}" data-hf-id="hf-5l71" id="bg-duo" src="assets/img/dance-duo.jpg" alt="">
+        </div>
+        <div data-hf-id="hf-04b0" class="bloom" id="bloom-violet" data-layout-allow-overflow></div>
+      </section>
+
+      <!-- HERO -->
+      <section data-hf-id="hf-sp0f" id="scene-hero" class="clip" data-start="0" data-duration="3" data-track-index="1">
+        <div data-hf-id="hf-bbul" class="hero-wrap">
+          <div data-hf-id="hf-a0uw" class="hero-layer" id="hero-base-layer">
+            <img data-color-grading="{&quot;preset&quot;:null,&quot;intensity&quot;:1,&quot;adjust&quot;:{&quot;exposure&quot;:0,&quot;contrast&quot;:0.32,&quot;highlights&quot;:-0.02,&quot;shadows&quot;:0.02,&quot;whites&quot;:0,&quot;blacks&quot;:0,&quot;temperature&quot;:0,&quot;tint&quot;:0,&quot;vibrance&quot;:0,&quot;saturation&quot;:-1},&quot;details&quot;:{&quot;vignette&quot;:0.3,&quot;vignetteMidpoint&quot;:0.5,&quot;vignetteRoundness&quot;:0,&quot;vignetteFeather&quot;:0.65,&quot;grain&quot;:0.3,&quot;grainSize&quot;:0.3,&quot;grainRoughness&quot;:0.5},&quot;effects&quot;:{&quot;blur&quot;:0,&quot;pixelate&quot;:0,&quot;chromaBleed&quot;:0,&quot;tapeDamage&quot;:0,&quot;tapeTracking&quot;:0,&quot;tapeNoise&quot;:1,&quot;tapeSpeed&quot;:0.5,&quot;filmArtifacts&quot;:0,&quot;halftone&quot;:0,&quot;halftoneSize&quot;:0,&quot;twoInkPrint&quot;:0,&quot;twoInkPrintSize&quot;:0,&quot;ascii&quot;:0,&quot;asciiSize&quot;:0.06578947368421052,&quot;asciiInvert&quot;:0,&quot;asciiStyle&quot;:0,&quot;asciiColor&quot;:1,&quot;asciiRotation&quot;:0,&quot;dither&quot;:0,&quot;ditherSize&quot;:0,&quot;bloom&quot;:0,&quot;bloomRadius&quot;:8,&quot;monoScreen&quot;:0,&quot;monoScreenSize&quot;:0,&quot;monoScreenAngle&quot;:0,&quot;monoScreenSpread&quot;:0,&quot;monoScreenShape&quot;:0,&quot;monoScreenInvert&quot;:0,&quot;scanlines&quot;:0,&quot;scanlineCount&quot;:0,&quot;scanlineSoftness&quot;:0,&quot;chromaticAberration&quot;:0,&quot;chromaticAngle&quot;:0,&quot;crtCurvature&quot;:0,&quot;digitalGlitch&quot;:0,&quot;digitalGlitchColorSplit&quot;:0,&quot;digitalGlitchLineTear&quot;:0,&quot;digitalGlitchPixelate&quot;:0,&quot;digitalGlitchBlockAmount&quot;:0,&quot;digitalGlitchBlockDisplacement&quot;:0,&quot;digitalGlitchBlockOpacity&quot;:0,&quot;digitalGlitchSpeed&quot;:0,&quot;engraving&quot;:0,&quot;engravingSpacing&quot;:0.4117647058823529,&quot;engravingMinThickness&quot;:0.2,&quot;engravingMaxThickness&quot;:0.4571428571428572,&quot;engravingAngle&quot;:0.25,&quot;engravingContrast&quot;:0.4666666666666667,&quot;engravingSharpness&quot;:0.59,&quot;engravingWave&quot;:0.2,&quot;engravingWaveFrequency&quot;:0.2222222222222222,&quot;crosshatch&quot;:0,&quot;crosshatchSpacing&quot;:0.28,&quot;crosshatchThickness&quot;:0.25,&quot;crosshatchAngle&quot;:0.25,&quot;crosshatchContrast&quot;:0.3333333333333333,&quot;crosshatchEdges&quot;:0.5,&quot;crosshatchLineWeight&quot;:0,&quot;crosshatchWave&quot;:0.33,&quot;crosshatchWaveFrequency&quot;:0.2222222222222222,&quot;kuwahara&quot;:0,&quot;kuwaharaRadius&quot;:0.14285714285714285,&quot;kuwaharaSharpness&quot;:0.3125,&quot;kuwaharaSaturation&quot;:0.5},&quot;lut&quot;:null,&quot;colorSpace&quot;:&quot;rec709&quot;,&quot;curves&quot;:{&quot;master&quot;:[[0,0],[1,1]],&quot;red&quot;:[[0,0.05],[0.5,0.64],[1,1]],&quot;green&quot;:[[0,0.01],[0.5,0.1],[1,0.8]],&quot;blue&quot;:[[0,0.2],[0.5,0.55],[1,0.96]]}}" data-hf-id="hf-vqqm" id="hero-base" src="assets/img/hero-three.jpg" alt="">
+          </div>
+          <div data-hf-id="hf-y9pu" class="hero-layer ghost" id="ghost-a-layer">
+            <img data-color-grading="{&quot;preset&quot;:null,&quot;intensity&quot;:1,&quot;adjust&quot;:{&quot;exposure&quot;:0,&quot;contrast&quot;:0.2,&quot;highlights&quot;:0,&quot;shadows&quot;:0,&quot;whites&quot;:0,&quot;blacks&quot;:0,&quot;temperature&quot;:0,&quot;tint&quot;:0,&quot;vibrance&quot;:0,&quot;saturation&quot;:-1},&quot;details&quot;:{&quot;vignette&quot;:0,&quot;vignetteMidpoint&quot;:0.5,&quot;vignetteRoundness&quot;:0,&quot;vignetteFeather&quot;:0.65,&quot;grain&quot;:0,&quot;grainSize&quot;:0.25,&quot;grainRoughness&quot;:0.5},&quot;effects&quot;:{&quot;blur&quot;:0,&quot;pixelate&quot;:0,&quot;chromaBleed&quot;:0,&quot;tapeDamage&quot;:0,&quot;tapeTracking&quot;:0,&quot;tapeNoise&quot;:1,&quot;tapeSpeed&quot;:0.5,&quot;filmArtifacts&quot;:0,&quot;halftone&quot;:0,&quot;halftoneSize&quot;:0,&quot;twoInkPrint&quot;:0,&quot;twoInkPrintSize&quot;:0,&quot;ascii&quot;:0,&quot;asciiSize&quot;:0.06578947368421052,&quot;asciiInvert&quot;:0,&quot;asciiStyle&quot;:0,&quot;asciiColor&quot;:1,&quot;asciiRotation&quot;:0,&quot;dither&quot;:0,&quot;ditherSize&quot;:0,&quot;bloom&quot;:0,&quot;bloomRadius&quot;:8,&quot;monoScreen&quot;:0,&quot;monoScreenSize&quot;:0,&quot;monoScreenAngle&quot;:0,&quot;monoScreenSpread&quot;:0,&quot;monoScreenShape&quot;:0,&quot;monoScreenInvert&quot;:0,&quot;scanlines&quot;:0,&quot;scanlineCount&quot;:0,&quot;scanlineSoftness&quot;:0,&quot;chromaticAberration&quot;:0,&quot;chromaticAngle&quot;:0,&quot;crtCurvature&quot;:0,&quot;digitalGlitch&quot;:0,&quot;digitalGlitchColorSplit&quot;:0,&quot;digitalGlitchLineTear&quot;:0,&quot;digitalGlitchPixelate&quot;:0,&quot;digitalGlitchBlockAmount&quot;:0,&quot;digitalGlitchBlockDisplacement&quot;:0,&quot;digitalGlitchBlockOpacity&quot;:0,&quot;digitalGlitchSpeed&quot;:0,&quot;engraving&quot;:0,&quot;engravingSpacing&quot;:0.4117647058823529,&quot;engravingMinThickness&quot;:0.2,&quot;engravingMaxThickness&quot;:0.4571428571428572,&quot;engravingAngle&quot;:0.25,&quot;engravingContrast&quot;:0.4666666666666667,&quot;engravingSharpness&quot;:0.59,&quot;engravingWave&quot;:0.2,&quot;engravingWaveFrequency&quot;:0.2222222222222222,&quot;crosshatch&quot;:0,&quot;crosshatchSpacing&quot;:0.28,&quot;crosshatchThickness&quot;:0.25,&quot;crosshatchAngle&quot;:0.25,&quot;crosshatchContrast&quot;:0.3333333333333333,&quot;crosshatchEdges&quot;:0.5,&quot;crosshatchLineWeight&quot;:0,&quot;crosshatchWave&quot;:0.33,&quot;crosshatchWaveFrequency&quot;:0.2222222222222222,&quot;kuwahara&quot;:0,&quot;kuwaharaRadius&quot;:0.14285714285714285,&quot;kuwaharaSharpness&quot;:0.3125,&quot;kuwaharaSaturation&quot;:0.5},&quot;lut&quot;:null,&quot;colorSpace&quot;:&quot;rec709&quot;,&quot;curves&quot;:{&quot;master&quot;:[[0,0],[1,1]],&quot;red&quot;:[[0,0],[0.5,0.7],[1,1]],&quot;green&quot;:[[0,0],[0.5,0.05],[1,0.4]],&quot;blue&quot;:[[0,0.05],[0.5,0.45],[1,0.8]]}}" data-hf-id="hf-013j" id="ghost-a" src="assets/img/hero-three.jpg" alt="">
+          </div>
+          <div data-hf-id="hf-t5y9" class="hero-layer ghost" id="ghost-b-layer">
+            <img data-color-grading="{&quot;preset&quot;:null,&quot;intensity&quot;:1,&quot;adjust&quot;:{&quot;exposure&quot;:0,&quot;contrast&quot;:0.2,&quot;highlights&quot;:0,&quot;shadows&quot;:0,&quot;whites&quot;:0,&quot;blacks&quot;:0,&quot;temperature&quot;:0,&quot;tint&quot;:0,&quot;vibrance&quot;:0,&quot;saturation&quot;:-1},&quot;details&quot;:{&quot;vignette&quot;:0,&quot;vignetteMidpoint&quot;:0.5,&quot;vignetteRoundness&quot;:0,&quot;vignetteFeather&quot;:0.65,&quot;grain&quot;:0,&quot;grainSize&quot;:0.25,&quot;grainRoughness&quot;:0.5},&quot;effects&quot;:{&quot;blur&quot;:0,&quot;pixelate&quot;:0,&quot;chromaBleed&quot;:0,&quot;tapeDamage&quot;:0,&quot;tapeTracking&quot;:0,&quot;tapeNoise&quot;:1,&quot;tapeSpeed&quot;:0.5,&quot;filmArtifacts&quot;:0,&quot;halftone&quot;:0,&quot;halftoneSize&quot;:0,&quot;twoInkPrint&quot;:0,&quot;twoInkPrintSize&quot;:0,&quot;ascii&quot;:0,&quot;asciiSize&quot;:0.06578947368421052,&quot;asciiInvert&quot;:0,&quot;asciiStyle&quot;:0,&quot;asciiColor&quot;:1,&quot;asciiRotation&quot;:0,&quot;dither&quot;:0,&quot;ditherSize&quot;:0,&quot;bloom&quot;:0,&quot;bloomRadius&quot;:8,&quot;monoScreen&quot;:0,&quot;monoScreenSize&quot;:0,&quot;monoScreenAngle&quot;:0,&quot;monoScreenSpread&quot;:0,&quot;monoScreenShape&quot;:0,&quot;monoScreenInvert&quot;:0,&quot;scanlines&quot;:0,&quot;scanlineCount&quot;:0,&quot;scanlineSoftness&quot;:0,&quot;chromaticAberration&quot;:0,&quot;chromaticAngle&quot;:0,&quot;crtCurvature&quot;:0,&quot;digitalGlitch&quot;:0,&quot;digitalGlitchColorSplit&quot;:0,&quot;digitalGlitchLineTear&quot;:0,&quot;digitalGlitchPixelate&quot;:0,&quot;digitalGlitchBlockAmount&quot;:0,&quot;digitalGlitchBlockDisplacement&quot;:0,&quot;digitalGlitchBlockOpacity&quot;:0,&quot;digitalGlitchSpeed&quot;:0,&quot;engraving&quot;:0,&quot;engravingSpacing&quot;:0.4117647058823529,&quot;engravingMinThickness&quot;:0.2,&quot;engravingMaxThickness&quot;:0.4571428571428572,&quot;engravingAngle&quot;:0.25,&quot;engravingContrast&quot;:0.4666666666666667,&quot;engravingSharpness&quot;:0.59,&quot;engravingWave&quot;:0.2,&quot;engravingWaveFrequency&quot;:0.2222222222222222,&quot;crosshatch&quot;:0,&quot;crosshatchSpacing&quot;:0.28,&quot;crosshatchThickness&quot;:0.25,&quot;crosshatchAngle&quot;:0.25,&quot;crosshatchContrast&quot;:0.3333333333333333,&quot;crosshatchEdges&quot;:0.5,&quot;crosshatchLineWeight&quot;:0,&quot;crosshatchWave&quot;:0.33,&quot;crosshatchWaveFrequency&quot;:0.2222222222222222,&quot;kuwahara&quot;:0,&quot;kuwaharaRadius&quot;:0.14285714285714285,&quot;kuwaharaSharpness&quot;:0.3125,&quot;kuwaharaSaturation&quot;:0.5},&quot;lut&quot;:null,&quot;colorSpace&quot;:&quot;rec709&quot;,&quot;curves&quot;:{&quot;master&quot;:[[0,0],[1,1]],&quot;red&quot;:[[0,0],[0.5,0.05],[1,0.45]],&quot;green&quot;:[[0,0],[0.5,0.45],[1,0.95]],&quot;blue&quot;:[[0,0.05],[0.5,0.7],[1,1]]}}" data-hf-id="hf-xe9g" id="ghost-b" src="assets/img/hero-three.jpg" alt="">
+          </div>
+        </div>
+        <div data-hf-id="hf-ub6l" class="bloom" id="bloom-pink" data-layout-allow-overflow></div>
+      </section>
+
+      <!-- TYPE + DECOR -->
+      <section data-hf-id="hf-jzss" id="scene-type" class="clip" data-start="0" data-duration="3" data-track-index="2">
+        <svg data-hf-id="hf-x57l" id="ring" viewBox="0 0 300 300">
+          <defs data-hf-id="hf-mh0t">
+            <path data-hf-id="hf-kltm" id="ring-path" d="M150,150 m-118,0 a118,118 0 1,1 236,0 a118,118 0 1,1 -236,0" />
+          </defs>
+          <circle data-hf-id="hf-d8k5" cx="150" cy="150" r="146" fill="rgba(255,46,154,0.92)" />
+          <circle data-hf-id="hf-xhdn" cx="150" cy="150" r="84" fill="none" stroke="#fff6fb" stroke-width="3" />
+          <text data-hf-id="hf-ioa6">
+            <textPath data-hf-id="hf-e278" href="#ring-path" textLength="736" lengthAdjust="spacing">UK GARAGE ✦ HOUSE ✦ CLUB ✦ AFTER DARK ✦</textPath>
+          </text>
+          <path data-hf-id="hf-ezqh" d="M150 96 C156 136 164 144 204 150 C164 156 156 164 150 204 C144 164 136 156 96 150 C136 144 144 136 150 96 Z" fill="#fff6fb" />
+        </svg>
+
+        <svg data-hf-id="hf-6av6" class="spark" id="spark-1" viewBox="0 0 100 100"><path data-hf-id="hf-2y1h" d="M50 0 C54 38 62 46 100 50 C62 54 54 62 50 100 C46 62 38 54 0 50 C38 46 46 38 50 0 Z" fill="#fff6fb" /></svg>
+        <svg data-hf-id="hf-sngh" class="spark" id="spark-2" viewBox="0 0 100 100"><path data-hf-id="hf-pedl" d="M50 0 C54 38 62 46 100 50 C62 54 54 62 50 100 C46 62 38 54 0 50 C38 46 46 38 50 0 Z" fill="#fff6fb" /></svg>
+        <svg data-hf-id="hf-98g0" class="spark" id="spark-3" viewBox="0 0 100 100"><path data-hf-id="hf-0pxr" d="M50 0 C54 38 62 46 100 50 C62 54 54 62 50 100 C46 62 38 54 0 50 C38 46 46 38 50 0 Z" fill="#bff4ff" /></svg>
+        <svg data-hf-id="hf-esq7" class="spark" id="spark-4" viewBox="0 0 100 100"><path data-hf-id="hf-qlao" d="M50 0 C54 38 62 46 100 50 C62 54 54 62 50 100 C46 62 38 54 0 50 C38 46 46 38 50 0 Z" fill="#fff6fb" /></svg>
+
+        <div data-hf-id="hf-8lig" class="type">
+          <div data-hf-id="hf-10f1" class="tag" id="tag">UK GARAGE <span data-hf-id="hf-d1fs" class="x">×</span> HOUSE <span data-hf-id="hf-h3wg" class="x">×</span> CLUB</div>
+          <div data-hf-id="hf-s25k" class="title-stack" id="title-stack">
+            <div data-hf-id="hf-b0fd" class="title" id="echo-violet" aria-hidden="true" data-layout-ignore>DIZZY</div>
+            <div data-hf-id="hf-fp5u" class="title" id="echo-pink" aria-hidden="true" data-layout-ignore>DIZZY</div>
+            <div data-hf-id="hf-5c5q" class="title" id="title-main">DIZZY</div>
+          </div>
+          <div data-hf-id="hf-uppy" class="script" id="script">type beat</div>
+          <div data-hf-id="hf-nyle" class="strip" id="strip">
+            <div data-hf-id="hf-krfd" class="chip">2-STEP</div>
+            <div data-hf-id="hf-tnyz" class="chip dark">CLUB VIBES</div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-d9wv" class="frame"></div>
+      </section>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Background: slow drunken tilt
+      tl.fromTo("#bg-wrap", { rotation: -9, scale: 1.25 }, { rotation: -5, scale: 1.12, duration: 3, ease: "power2.out" }, 0);
+
+      // Hero double vision: ghosts swing in and settle slightly off-register
+      tl.fromTo("#hero-base-layer", { scale: 1.12 }, { scale: 1, duration: 1.4, ease: "power3.out" }, 0);
+      tl.fromTo("#ghost-a-layer", { x: -160, rotation: -8, scale: 1.2 }, { x: -46, rotation: -3, scale: 1.06, duration: 1.8, ease: "power3.out" }, 0);
+      tl.fromTo("#ghost-b-layer", { x: 140, rotation: 7, scale: 1.18 }, { x: 34, rotation: 2.4, scale: 1.1, duration: 1.8, ease: "power3.out" }, 0);
+
+      // Title slam + echoes drifting off-register
+      tl.fromTo("#title-main", { scale: 1.6, opacity: 0, rotation: -14 }, { scale: 1, opacity: 1, rotation: -6, duration: 0.7, ease: "back.out(1.6)" }, 0.35);
+      tl.fromTo("#echo-violet", { x: 0, y: 0, rotation: -6, opacity: 0 }, { x: 18, y: 22, rotation: -8, opacity: 0.9, duration: 1, ease: "power3.out" }, 0.55);
+      tl.fromTo("#echo-pink", { x: 0, y: 0, rotation: -6, opacity: 0 }, { x: -24, y: -14, rotation: -2.5, opacity: 1, duration: 1, ease: "power3.out" }, 0.55);
+
+      tl.fromTo("#tag", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 0.2);
+      tl.fromTo("#script", { x: 60, opacity: 0, rotation: -4 }, { x: 0, opacity: 1, rotation: -7, duration: 0.6, ease: "power3.out" }, 0.9);
+      tl.fromTo("#strip", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 1.1);
+
+      tl.fromTo("#ring", { rotation: -120, scale: 0.4, opacity: 0 }, { rotation: 12, scale: 1, opacity: 1, duration: 1, ease: "back.out(1.4)" }, 0.8);
+      tl.fromTo(".spark", { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.6, stagger: 0.12, ease: "back.out(2)" }, 1.0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
