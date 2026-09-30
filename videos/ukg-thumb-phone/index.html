@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>UKG Phone Thumbnail</title>
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Archivo Wide";
+        src: url("assets/fonts/archivo-latin-wdth-italic.woff2") format("woff2");
+        font-style: italic;
+        font-weight: 100 900;
+        font-stretch: 62% 125%;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+      #gl {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        display: block;
+      }
+      .center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .block {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 22px;
+        margin-top: 40px;
+      }
+      .word {
+        font-family: "Archivo Wide", sans-serif;
+        font-style: italic;
+        font-weight: 900;
+        font-stretch: 125%;
+        font-size: 220px;
+        line-height: 0.82;
+        letter-spacing: 0.01em;
+        color: #ffffff;
+        white-space: nowrap;
+        text-shadow: 0 6px 40px rgba(0, 20, 0, 0.45);
+      }
+      .tag {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-left: 12px;
+      }
+      .tag-name {
+        font-family: "Archivo Wide", sans-serif;
+        font-style: italic;
+        font-weight: 800;
+        font-stretch: 125%;
+        font-size: 25px;
+        line-height: 1.02;
+        letter-spacing: 0.04em;
+        color: #ffffff;
+        white-space: nowrap;
+      }
+      #barcode {
+        width: 196px;
+        height: 70px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="2"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section id="scene-phone" class="clip" data-start="0" data-duration="2" data-track-index="0">
+        <canvas id="gl" width="1920" height="1080" data-layout-allow-overflow></canvas>
+      </section>
+
+      <section id="scene-type" class="clip center" data-start="0" data-duration="2" data-track-index="1">
+        <div class="block" id="block">
+          <div class="word" id="word" data-layout-allow-overlap>HOTLINE</div>
+          <div class="tag" id="tag">
+            <div class="tag-name"><div>UBERAN MINO</div><div>BEATS</div></div>
+            <svg id="barcode" viewBox="0 0 196 70" aria-hidden="true"></svg>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        const $ = (id) => document.getElementById(id);
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, k) => a + (b - a) * k;
+        const easeOut = (k) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
+
+        // green treatment from ukg-neon-cuts: dark · saturated · highlight, mapped from luminance
+        const GREEN = [[0.02, 0.28, 0.0], [0.22, 1.0, 0.06], [0.9, 1.0, 0.62]];
+
+        function euler(rx, ry, rz) {
+          const cx = Math.cos(rx), sx = Math.sin(rx), cy = Math.cos(ry), sy = Math.sin(ry), cz = Math.cos(rz), sz = Math.sin(rz);
+          const R = [
+            [cz * cy, cz * sy * sx - sz * cx, cz * sy * cx + sz * sx],
+            [sz * cy, sz * sy * sx + cz * cx, sz * sy * cx - cz * sx],
+            [-sy, cy * sx, cy * cx],
+          ];
+          return [R[0][0], R[0][1], R[0][2], R[1][0], R[1][1], R[1][2], R[2][0], R[2][1], R[2][2]];
+        }
+
+        // ---------- shader library, copied from ukg-neon-cuts ----------
+        const LIB = `
+precision highp float;
+uniform vec4 uVP; uniform float uT, uL, uBeat, uHit, uFrame;
+uniform vec3 uC0, uC1, uC2; uniform float uInv;
+uniform float uZoom, uRot, uKal, uMirror, uGlitch, uCA;
+uniform vec2 uPan; uniform mat3 uM; uniform vec3 uObj; uniform vec4 uA, uB;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x), mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x), f.y); }
+float fbm(vec2 p){ float v=0., a=.5; mat2 m=mat2(1.6,1.2,-1.2,1.6); for(int i=0;i<4;i++){ v+=a*noise(p); p=m*p; a*=.5; } return v; }
+mat2 rot2(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+float sdRoundBox(vec3 p, vec3 b, float r){ vec3 q=abs(p)-b+r; return length(max(q,0.))+min(max(q.x,max(q.y,q.z)),0.)-r; }
+float sdCyl(vec3 p, float h, float r){ vec2 d=abs(vec2(length(p.xz),p.y))-vec2(r,h); return min(max(d.x,d.y),0.)+length(max(d,0.)); }
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r){ vec3 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.); return length(pa-ba*h)-r; }
+float smin(float a, float b, float k){ float h=clamp(.5+.5*(b-a)/k,0.,1.); return mix(b,a,h)-k*h*(1.-h); }
+float sdRoundCone(vec3 p, float r1, float r2, float h){
+  vec2 q=vec2(length(p.xz), p.y); float b=(r1-r2)/h; float a=sqrt(1.-b*b); float k=dot(q, vec2(-b,a));
+  if (k < 0.) return length(q)-r1; if (k > a*h) return length(q-vec2(0.,h))-r2; return dot(q, vec2(a,b))-r1;
+}
+float bgLum(vec2 p){
+  float l = .5 + .28*exp(-dot(p*vec2(1.,.8),p*vec2(1.,.8))*3.2) + (fbm(p*3.+uT*.2)-.5)*.06;
+  if (uB.x > .5) {
+    float r=length(p), a=atan(p.y,p.x); float z=.3/max(r,.01) + uT*3.;
+    float ai=floor(a/6.28318*70.), fa=fract(a/6.28318*70.);
+    float h=hash(vec2(ai,1.)); float seg=fract(z*.5+h*10.);
+    l = .12 + step(.55,h)*smoothstep(0.,.05,seg)*smoothstep(.45,.3,seg)*exp(-(fa-.5)*(fa-.5)*30.)*.8*smoothstep(.02,.25,r) + exp(-r*5.)*.45;
+  }
+  return l;
+}
+float shade(vec3 lp, vec3 n, vec3 rd, float m){
+  vec3 L=normalize(vec3(-.55,.65,.55));
+  float dif=clamp(dot(n,L),0.,1.);
+  float fre=pow(1.-clamp(dot(n,-rd),0.,1.),3.);
+  vec3 r=reflect(rd,n);
+  float spec=pow(clamp(dot(r,L),0.,1.),48.);
+  float box=smoothstep(.35,.7,r.y)*smoothstep(.9,.5,abs(r.x));
+  float strip=smoothstep(.16,.0,abs(r.x-.62))*smoothstep(-.4,.2,r.y);
+  float base=.3, gloss=.5, emit=0.;
+  if (m < 1.5) { base=.2; gloss=.6; }
+  else if (m < 2.5) { base=.66; gloss=.25; }
+  else if (m < 3.5) { base=.08; gloss=.25; emit=.72 + .08*sin(lp.y*260.); }
+  else if (m < 4.5) { base=.32; gloss=1.15; }
+  else if (m < 5.5) { base=.03; gloss=1.35; }
+  else if (m < 6.5) { base=.52; gloss=.65; }
+  else if (m < 7.5) { base=.45; gloss=.95; }
+  else if (m < 8.5) { base=.16; gloss=.2; }
+  else { base=.6; gloss=0.; }
+  return base*(.22 + .9*dif) + gloss*(spec*1.15 + box*.55 + strip*.45) + fre*.3*gloss + emit;
+}
+// ---------- 1 · lips ----------
+float lipH(vec2 q, float o, out float mat){
+  float x=q.x, y=q.y; mat=0.;
+  float ax=abs(x); if (ax > 1.) return 0.;
+  float w=1.-x*x;
+  float yt=.34*pow(w,.5) - .07*exp(-x*x*70.) + .035*exp(-pow(ax-.2,2.)*110.);
+  float ym=-.015 + .04*x*x;
+  float yu=ym + o*w;
+  float yl=ym - o*w*.8;
+  float yb=-.42*pow(w,.6) - .01;
+  if (y < yt && y > yu) { float s=(y-yu)/(yt-yu); mat=1.; return pow(sin(3.14159*s),.7)*pow(w,.3); }
+  if (y < yl && y > yb) { float s=(y-yb)/(yl-yb); mat=2.; return pow(sin(3.14159*s),.55)*pow(w,.3)*1.15; }
+  if (y <= yu && y >= yl) { mat=3.; return 0.; }
+  return 0.;
+}
+float sLips(vec2 p, float t){
+  vec2 q=p*vec2(3.7,3.3);
+  float o=uA.x;
+  float m, mx, my; float e=.004;
+  float h=lipH(q,o,m);
+  float hx=lipH(q+vec2(e,0.),o,mx), hy=lipH(q+vec2(0.,e),o,my);
+  float skin=.34 + .08*(1.-length(q*vec2(.6,1.))) + (fbm(q*14.)-.5)*.04;
+  if (m < .5) {
+    float sh=exp(-pow((q.y + .42*pow(max(1.-q.x*q.x,0.),.65) + .03)*9.,2.))*.12;
+    return skin - sh;
+  }
+  if (m > 2.5) {
+    return .02 + .05*(1.-abs(q.x));
+  }
+  vec3 n=normalize(vec3(-(hx-h)/e*.09, -(hy-h)/e*.09, 1.));
+  vec3 L=normalize(vec3(-.4,.6,.7));
+  float dif=clamp(dot(n,L),0.,1.);
+  vec3 r=reflect(vec3(0.,0.,-1.),n);
+  float spec=pow(clamp(dot(r,normalize(vec3(-.2,.45,.85))),0.,1.),60.);
+  float crease=.93 + .07*sin(q.x*160. + q.y*18.)*smoothstep(.0,.25,h);
+  float l=(.26 + .55*dif)*crease + spec*(m > 1.5 ? 1.25 : .8);
+  return l;
+}
+// ---------- 2 · brick phone ----------
+vec2 mapPhone(vec3 p){
+  float body=sdRoundBox(p, vec3(.3,.78,.14), .07);
+  float scr=sdRoundBox(p - vec3(0.,.38,.15), vec3(.2,.13,.035), .02);
+  vec2 res=vec2(max(body,-scr), 1.);
+  float screen=sdRoundBox(p - vec3(0.,.38,.118), vec3(.19,.12,.01), .01);
+  if (screen < res.x) res=vec2(screen, 3.);
+  vec3 q=p - vec3(0.,-.3,.15);
+  vec2 id=clamp(floor(q.xy/vec2(.16,.13)+.5), vec2(-1.,-2.), vec2(1.,1.));
+  q.xy -= id*vec2(.16,.13);
+  float keys=sdRoundBox(q, vec3(.058,.038,.028), .02);
+  if (keys < res.x) res=vec2(keys, 2.);
+  float ear=sdRoundBox(p - vec3(0.,.66,.145), vec3(.12,.03,.02), .02);
+  if (ear < res.x) res=vec2(ear, 2.);
+  float ant=min(sdCapsule(p, vec3(.18,.78,0.), vec3(.18,1.45,0.), .03), length(p-vec3(.18,1.47,0.))-.055);
+  if (ant < res.x) res=vec2(ant, 4.);
+  return res;
+}
+// ---------- 3 · rotary phone ----------
+vec2 mapRotary(vec3 p){
+  vec3 q=p; float tp=1. - .24*clamp(q.y+.3,0.,1.); q.xz/=tp;
+  float base=sdRoundBox(q - vec3(0.,-.18,0.), vec3(.74,.26,.58), .2)*tp;
+  vec2 res=vec2(base, 1.);
+  vec3 dp=p - vec3(0.,.04,.58); dp.yz=rot2(-.8)*dp.yz;
+  float plate=sdCyl(dp, .04, .34);
+  vec3 hp=dp; hp.xz=rot2(uA.y)*hp.xz;
+  float an=atan(hp.z,hp.x); float seg=6.28318/10.; float ai=floor(an/seg+.5);
+  vec2 hc=rot2(ai*seg)*hp.xz;
+  float hole=max(length(hc - vec2(.245,0.)) - .052, abs(dp.y)-.2);
+  plate=max(plate, -hole);
+  float dial=max(sdCyl(dp - vec3(0.,.02,0.), .02, .3), -hole);
+  if (plate < res.x) res=vec2(plate, 4.);
+  if (dial < res.x) res=vec2(dial, 1.);
+  float cap=sdCyl(dp - vec3(0.,.05,0.), .02, .11);
+  if (cap < res.x) res=vec2(cap, 2.);
+  vec3 h=p - vec3(0., .36 + uA.x, -.06);
+  float grip=sdCapsule(h, vec3(-.5,.07,0.), vec3(.5,.07,0.), .08);
+  float e1=sdCyl(h - vec3(-.6,-.02,0.), .07, .16);
+  float e2=sdCyl(h - vec3(.6,-.02,0.), .07, .16);
+  float hs=smin(grip, min(e1,e2), .1);
+  if (hs < res.x) res=vec2(hs, 1.);
+  return res;
+}
+// ---------- 4 · sunglasses ----------
+float sdLens2(vec2 p){ p.x -= p.y*.18; vec2 b=vec2(.4,.24); float r=.16; vec2 q=abs(p)-b+r; return length(max(q,0.))+min(max(q.x,q.y),0.)-r; }
+vec2 mapShades(vec3 p){
+  vec3 q=p; q.x=abs(q.x)-.5;
+  float d2=sdLens2(q.xy);
+  float lens=max(d2, abs(q.z + .06*q.x*q.x)-.016);
+  vec2 res=vec2(lens, 5.);
+  float rim=max(abs(d2)-.035, abs(q.z)-.05);
+  if (rim < res.x) res=vec2(rim, 1.);
+  float br=sdCapsule(p, vec3(-.13,.13,0.), vec3(.13,.13,0.), .032);
+  if (br < res.x) res=vec2(br, 1.);
+  float tp=sdRoundBox(vec3(q.x-.4, q.y-.14, q.z+.55), vec3(.022,.028,.55), .015);
+  if (tp < res.x) res=vec2(tp, 1.);
+  return res;
+}
+// ---------- 5 · lipstick ----------
+vec2 mapLipstick(vec3 p){
+  float ext=uA.x;
+  float tube=sdCyl(p - vec3(0.,-.45,0.), .35, .2);
+  float ang=atan(p.z,p.x);
+  tube += .006*sin(ang*26.)*step(p.y,-.12);
+  vec2 res=vec2(tube, 4.);
+  float col=sdCyl(p - vec3(0.,-.02,0.), .1, .168);
+  if (col < res.x) res=vec2(col, 4.);
+  vec3 b=p - vec3(0.,.05 + ext*.5, 0.);
+  float bullet=sdCyl(b, .08 + ext*.5, .135) - .005;
+  vec3 n=normalize(vec3(.6,1.,0.));
+  bullet=max(bullet, dot(b - vec3(0.,.04 + ext*.5,0.), n));
+  if (bullet < res.x) res=vec2(bullet, 6.);
+  return res;
+}
+// ---------- 6 · chili pattern ----------
+float sdChili(vec3 p){
+  float k=.55; float c=cos(k*p.y), s=sin(k*p.y);
+  vec2 q2=mat2(c,-s,s,c)*p.xy;
+  return sdRoundCone(vec3(q2,p.z) - vec3(0.,-.42,0.), .035, .14, .82)*.85;
+}
+vec2 mapChili(vec3 p){
+  vec2 cell=floor(p.xy/vec2(.72,.62)+.5);
+  vec3 q=p; q.xy -= cell*vec2(.72,.62);
+  float h=hash(cell);
+  q.xy=rot2(h*6.28 + uT*.6*(h-.5))*q.xy*1.8;
+  vec2 res=vec2(sdChili(q)/1.8, 7.);
+  float stem=min(sdCyl(q - vec3(.0,.47,0.), .03, .13) - .015, sdCapsule(q, vec3(.0,.5,0.), vec3(.06,.66,0.), .028));
+  stem/=1.8;
+  if (stem < res.x) res=vec2(stem, 8.);
+  float pl=p.z + .1;
+  if (pl < res.x) res=vec2(pl, 9.);
+  return vec2(min(res.x,.3), res.y);
+}
+// ---------- 7 · mirror ball ----------
+float sDisco(vec2 p, float t){
+  vec2 c=uA.yz*vec2(1.,1.); c=vec2(0.,.02); float R=.3; float ang=t*uA.w;
+  float l=.04;
+  vec2 dp=p-c; float dist=length(dp);
+  float a=atan(dp.y,dp.x);
+  float bin=floor((a+ang*.3)*40./6.28318); float fa=fract((a+ang*.3)*40./6.28318)-.5;
+  l += step(.5,hash(vec2(bin,3.)))*exp(-fa*fa*90.)*.55*smoothstep(R,R*1.3,dist)/(1.+dist*2.5)*(.6+.8*uHit);
+  vec2 g=vec2(p.x*8. + t*.5, p.y*10.); vec2 id=floor(g); vec2 f=fract(g)-.5;
+  vec2 o=(vec2(hash(id+3.1),hash(id+5.7))-.5)*.55;
+  l += step(.5,hash(id))*exp(-dot(f-o,f-o)*80.)*.7;
+  vec2 q=dp/R; float d2=dot(q,q);
+  if (d2 < 1.){
+    vec3 n=vec3(q, sqrt(1.-d2));
+    float ca=cos(ang), sa=sin(ang);
+    vec3 no=vec3(ca*n.x + sa*n.z, n.y, -sa*n.x + ca*n.z);
+    float lat=asin(clamp(no.y,-1.,1.)), lon=atan(no.z,no.x);
+    float rows=28.; float u=(lat/3.14159+.5)*rows; float li=floor(u);
+    float latc=((li+.5)/rows-.5)*3.14159;
+    float cols=max(4., floor(rows*2.*cos(latc)));
+    float v=(lon/6.28318+.5)*cols; float lj=floor(v);
+    float lonc=((lj+.5)/cols-.5)*6.28318;
+    float fu=fract(u), fv=fract(v);
+    float grout=smoothstep(0.,.1,fu)*smoothstep(1.,.9,fu)*smoothstep(0.,.1,fv)*smoothstep(1.,.9,fv);
+    float h=hash(vec2(li,lj));
+    vec3 nt=vec3(cos(latc)*cos(lonc), sin(latc), cos(latc)*sin(lonc));
+    nt=normalize(nt + (vec3(hash(vec2(li,lj+3.)),hash(vec2(li+7.,lj)),h)-.5)*.1);
+    vec3 nv=vec3(ca*nt.x - sa*nt.z, nt.y, sa*nt.x + ca*nt.z);
+    vec3 r=reflect(vec3(0.,0.,-1.), nv);
+    float e=.08 + .5*h*h + pow(max(dot(r,normalize(vec3(-.5,.5,.7))),0.),40.)*1.5 + pow(max(dot(r,normalize(vec3(.6,.3,.7))),0.),40.)*1.2;
+    e += pow(hash(vec2(li,lj)+floor(t*8.)*.137),20.)*1.5;
+    float m=(e*grout + .02*(1.-grout))*(.35+.65*n.z) + pow(1.-n.z,3.)*.12;
+    l=mix(l, m*(1.+.3*uBeat), smoothstep(1.,.985,d2));
+  }
+  return l;
+}
+// ---------- 8 · acid cells ----------
+vec2 vor(vec2 x){
+  vec2 n=floor(x), f=fract(x); float F1=8., F2=8.;
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){
+    vec2 g=vec2(float(i),float(j)); vec2 o=vec2(hash(n+g),hash(n+g+19.1)); o=.5+.4*sin(uT*1.3+6.28318*o);
+    float d=length(g+o-f); if(d<F1){F2=F1;F1=d;} else if(d<F2) F2=d;
+  }
+  return vec2(F1,F2);
+}
+float sAcid(vec2 p, float t){
+  vec2 w=p*3.2 + vec2(fbm(p*2.+t*.3), fbm(p*2.+5.-t*.3))*1.4;
+  vec2 v=vor(w);
+  float edge=v.y-v.x;
+  float rim=smoothstep(0.,.1,edge);
+  float l=mix(.98, .1 + .45*pow(v.x,1.3), rim);
+  vec2 v2=vor(w*2.7+7.);
+  l += (1.-smoothstep(0.,.08,v2.y-v2.x))*.3*rim;
+  l += .35*rim*exp(-pow(v.x-.25,2.)*60.)*smoothstep(.2,.5,edge);
+  return l;
+}
+// ---------- 9 · tunnel streaks ----------
+float sTunnel(vec2 p, float t){
+  float r=length(p), a=atan(p.y,p.x);
+  float z=.3/max(r,.01) + t*uA.x;
+  float ai=floor(a/6.28318*70.), fa=fract(a/6.28318*70.);
+  float h=hash(vec2(ai,1.)); float seg=fract(z*.5 + h*10.);
+  float l=.1 + step(.5,h)*smoothstep(0.,.05,seg)*smoothstep(.45,.3,seg)*exp(-(fa-.5)*(fa-.5)*30.)*(.6+.4*hash(vec2(ai,2.)))*smoothstep(.02,.25,r);
+  l += exp(-r*5.)*.5;
+  l += (fbm(p*5.+t)-.5)*.05;
+  return l;
+}
+`;
+        const FS =
+          LIB +
+          `
+vec3 calcN(vec3 p){ const vec2 k=vec2(1.,-1.); float e=.0015;
+  return normalize(k.xyy*mapPhone(p+k.xyy*e).x + k.yyx*mapPhone(p+k.yyx*e).x + k.yxy*mapPhone(p+k.yxy*e).x + k.xxx*mapPhone(p+k.xxx*e).x); }
+float scene(vec2 p){
+  vec3 ro=vec3(0.,0.,uA.w); vec3 rd=normalize(vec3(p,-1.6));
+  // deeper green toward the frame edges than the portrait original
+  float bg=bgLum(p)*(.7 + .22*exp(-dot(p-vec2(.06,.0),p-vec2(.06,.0))*5.));
+  vec3 oc=ro-uObj; float b=dot(oc,rd); float c=dot(oc,oc)-uB.w*uB.w; float disc=b*b-c;
+  if (disc < 0.) return bg;
+  float sq=sqrt(disc); float t=max(-b-sq,0.); float tEnd=-b+sq;
+  float minD=1e3; vec2 h=vec2(1.,0.); bool hit=false;
+  for (int i=0;i<90;i++){
+    h=mapPhone(uM*(ro+rd*t-uObj));
+    minD=min(minD,h.x);
+    if (h.x < .0015) { hit=true; break; }
+    t += h.x*.9;
+    if (t > tEnd) break;
+  }
+  if (!hit) return bg + exp(-minD*16.)*.25;
+  vec3 lp=uM*(ro+rd*t-uObj);
+  vec3 n=calcN(lp);
+  vec3 nw=n*uM;
+  float ao=clamp(mapPhone(lp + n*.08).x/.08, 0., 1.);
+  float l=shade(lp, nw, rd, h.y)*(.55+.45*ao);
+  return l;
+}
+vec3 ramp(float l){
+  l=clamp(l,0.,1.);
+  if (l < .33) return uC0*(l/.33);
+  if (l < .7) return mix(uC0, uC1, (l-.33)/.37);
+  return mix(uC1, uC2, (l-.7)/.3);
+}
+void main(){
+  vec2 uv=(gl_FragCoord.xy - uVP.xy)/uVP.zw;
+  if (uGlitch > 0.) { float fr=floor(uT*24.); float sl=floor(uv.y*22.); if (hash(vec2(sl,fr)) < uGlitch) uv.x += (hash(vec2(sl,fr+3.1))-.5)*.3; }
+  vec2 p=(uv-.5)*vec2(uVP.z/uVP.w, 1.);
+  p=rot2(uRot)*p/uZoom + uPan;
+  if (uMirror > .5) p=abs(p) - vec2(.02,.0);
+  if (uKal > .5) { float r=length(p), a=atan(p.y,p.x), seg=6.28318/uKal; a=mod(a,seg); a=abs(a-seg*.5); p=r*vec2(cos(a),sin(a)); }
+  float l=scene(p);
+  if (uInv > .5) l=1.05-l;
+  vec3 col=ramp(l);
+  col += (hash(gl_FragCoord.xy*.73 + uFrame*17.13)-.5)*.07;
+  float v=length((uv-.5)*vec2(1.,1.2)); col*=1.-.35*smoothstep(.35,.8,v);
+  gl_FragColor=vec4(col,1.);
+}`;
+
+        // ---------- WebGL ----------
+        const canvas = $("gl");
+        const gl = canvas.getContext("webgl", { preserveDrawingBuffer: true, antialias: false, alpha: false });
+        const VS = "attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }";
+        function sh(type, src) {
+          const s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+          return s;
+        }
+        const prog = gl.createProgram();
+        gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+        gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
+        const UN = ["uVP", "uT", "uL", "uBeat", "uHit", "uFrame", "uC0", "uC1", "uC2", "uInv", "uZoom", "uRot", "uKal", "uMirror", "uGlitch", "uCA", "uPan", "uM", "uObj", "uA", "uB"];
+        const U = {};
+        UN.forEach((n) => (U[n] = gl.getUniformLocation(prog, n)));
+        const loc = gl.getAttribLocation(prog, "p");
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+        // final pose: phone tilted with the antenna up-left, like the neon cut at ~0.8s
+        const POSE_END = { rx: 0.27, ry: 0.38, rz: 0.46, x: 0.1, y: -0.2, zoom: 1.22 };
+        const POSE_START = { rx: 0.1, ry: -0.9, rz: 0.2, x: 0.1, y: -0.2, zoom: 1.4 };
+
+        function renderAt(t) {
+          const k = easeOut(t / 1.4);
+          const P = {};
+          for (const key in POSE_END) P[key] = lerp(POSE_START[key], POSE_END[key], k);
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          gl.useProgram(prog);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.enableVertexAttribArray(loc);
+          gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+          gl.uniform4f(U.uVP, 0, 0, canvas.width, canvas.height);
+          gl.uniform1f(U.uT, 1.2);
+          gl.uniform1f(U.uBeat, 0);
+          gl.uniform1f(U.uHit, 0);
+          gl.uniform1f(U.uFrame, 7);
+          gl.uniform3fv(U.uC0, GREEN[0]);
+          gl.uniform3fv(U.uC1, GREEN[1]);
+          gl.uniform3fv(U.uC2, GREEN[2]);
+          gl.uniform1f(U.uInv, 0);
+          gl.uniform1f(U.uZoom, P.zoom);
+          gl.uniform1f(U.uRot, 0);
+          gl.uniform1f(U.uKal, 0);
+          gl.uniform1f(U.uMirror, 0);
+          gl.uniform1f(U.uGlitch, 0);
+          gl.uniform1f(U.uCA, 0);
+          gl.uniform2fv(U.uPan, [0, 0]);
+          gl.uniformMatrix3fv(U.uM, false, euler(P.rx, P.ry, P.rz));
+          gl.uniform3fv(U.uObj, [P.x, P.y, 0]);
+          gl.uniform4fv(U.uA, [0, 0, 0, 4.3]);
+          gl.uniform4fv(U.uB, [0, 0, 0, 1.9]);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+
+        // ---------- barcode ----------
+        (function drawBarcode() {
+          const svg = $("barcode");
+          const pattern = [3, 1, 1, 2, 4, 1, 1, 3, 2, 1, 1, 1, 3, 2, 1, 4, 1, 2, 1, 1, 2, 3, 1, 1, 4, 2, 1, 1, 2, 1, 3, 1, 1, 2, 1, 3, 2, 1, 1, 3];
+          let x = 0,
+            on = true,
+            out = "";
+          for (const w of pattern) {
+            const width = w * 2.2;
+            if (on) out += `<rect x="${x.toFixed(1)}" y="0" width="${width.toFixed(1)}" height="70" fill="#ffffff"/>`;
+            x += width;
+            on = !on;
+          }
+          svg.setAttribute("viewBox", `0 0 ${x.toFixed(1)} 70`);
+          svg.innerHTML = out;
+        })();
+
+        // ---------- timeline ----------
+        const tl = gsap.timeline({ paused: true });
+        const clock = { t: 0 };
+        tl.to(clock, { t: 2, duration: 2, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+        tl.fromTo("#word", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.5, ease: "power4.out" }, 0.5);
+        tl.fromTo("#tag", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.8);
+        renderAt(0);
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
