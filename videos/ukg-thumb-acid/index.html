@@ -3,25 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <title>UKG Acid Thumbnail</title>
-    <script src="assets/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
-      @font-face {
-        font-family: "Archivo Wide";
-        src: url("assets/fonts/archivo-latin-wdth-italic.woff2") format("woff2");
-        font-style: italic;
-        font-weight: 100 900;
-        font-stretch: 62% 125%;
-      }
-
-      :root {
-        /* one hue does all the work: swap these three to re-colour the thumbnail */
-        --hue-deep: #3d0027;
-        --hue-mid: #d4008a;
-        --hue-hot: #ff38b8;
-        --white: #ffffff;
-      }
-
       * {
         margin: 0;
         padding: 0;
@@ -29,82 +12,25 @@
       }
       html,
       body {
+        margin: 0;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background: #000;
+        background: #0a0a0a;
       }
       #root {
-        position: relative;
         width: 100%;
         height: 100%;
-        overflow: hidden;
-        background: #000;
-      }
-      .clip {
-        position: absolute;
-        inset: 0;
-      }
-      .layer {
-        position: absolute;
-        inset: 0;
-        width: 1920px;
-        height: 1080px;
-      }
-      #fluid {
-        image-rendering: auto;
-      }
-      #grain {
-        mix-blend-mode: overlay;
-        opacity: 0.45;
-      }
-      #vignette {
-        background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.55) 100%);
-      }
-
-      .center {
         display: flex;
         align-items: center;
         justify-content: center;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
       }
-      .block {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 22px;
-      }
-      .word {
-        font-family: "Archivo Wide", sans-serif;
-        font-style: italic;
-        font-weight: 900;
-        font-stretch: 125%;
-        font-size: 250px;
-        line-height: 0.82;
-        letter-spacing: 0.01em;
-        color: var(--white);
-        white-space: nowrap;
-      }
-      .tag {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-left: 12px;
-      }
-      .tag-name {
-        font-family: "Archivo Wide", sans-serif;
-        font-style: italic;
-        font-weight: 800;
-        font-stretch: 125%;
-        font-size: 25px;
-        line-height: 1.02;
-        letter-spacing: 0.04em;
-        color: var(--white);
-        white-space: nowrap;
-      }
-      #barcode {
-        width: 196px;
-        height: 70px;
+      #title {
+        color: #f4f4f5;
+        font-size: 72px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
       }
     </style>
   </head>
@@ -113,213 +39,17 @@
       id="root"
       data-composition-id="main"
       data-start="0"
-      data-duration="3"
+      data-duration="10"
       data-width="1920"
       data-height="1080"
     >
-      <section id="scene-fluid" class="clip" data-start="0" data-duration="3" data-track-index="0">
-        <canvas id="fluid" class="layer" width="960" height="540" data-layout-allow-overflow></canvas>
-        <div id="vignette" class="layer"></div>
-        <canvas id="grain" class="layer" width="1920" height="1080" data-layout-ignore></canvas>
-      </section>
-
-      <section id="scene-type" class="clip center" data-start="0" data-duration="3" data-track-index="1">
-        <div class="block" id="block">
-          <div class="word" id="word" data-layout-allow-overlap>DIZZY</div>
-          <div class="tag" id="tag">
-            <div class="tag-name"><div>UBERAN MINO</div><div>BEATS</div></div>
-            <svg id="barcode" viewBox="0 0 196 70" aria-hidden="true"></svg>
-          </div>
-        </div>
-      </section>
+      <h1 id="title" class="clip" data-start="0" data-duration="10" data-track-index="0">Title</h1>
     </div>
-
     <script>
-      // ---------- deterministic value noise ----------
-      function hash(x, y, s) {
-        let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 144665);
-        h = Math.imul(h ^ (h >>> 13), 1274126177);
-        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-      }
-      function vnoise(x, y) {
-        const xi = Math.floor(x),
-          yi = Math.floor(y);
-        const fx = x - xi,
-          fy = y - yi;
-        const ux = fx * fx * (3 - 2 * fx),
-          uy = fy * fy * (3 - 2 * fy);
-        const a = hash(xi, yi, 1),
-          b = hash(xi + 1, yi, 1),
-          c = hash(xi, yi + 1, 1),
-          d = hash(xi + 1, yi + 1, 1);
-        return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
-      }
-      function fbm(x, y) {
-        let v = 0,
-          amp = 0.5;
-        for (let o = 0; o < 5; o++) {
-          v += amp * vnoise(x, y);
-          const nx = 1.6 * x + 1.2 * y + 3.1;
-          y = -1.2 * x + 1.6 * y + 1.7;
-          x = nx;
-          amp *= 0.5;
-        }
-        return v;
-      }
-      const smooth = (a, b, x) => {
-        const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-        return t * t * (3 - 2 * t);
-      };
-      const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-
-      // worley with cell id + offset to nearest centre (for bubble shading)
-      function cellular(x, y, seed) {
-        const xi = Math.floor(x),
-          yi = Math.floor(y);
-        let f1 = 9,
-          f2 = 9,
-          dx = 0,
-          dy = 0,
-          id = 0;
-        for (let j = -1; j <= 1; j++) {
-          for (let i = -1; i <= 1; i++) {
-            const cx = xi + i,
-              cy = yi + j;
-            const px = cx + 0.12 + 0.76 * hash(cx, cy, seed);
-            const py = cy + 0.12 + 0.76 * hash(cx, cy, seed + 3);
-            const ox = x - px,
-              oy = y - py;
-            const d = Math.hypot(ox, oy);
-            if (d < f1) {
-              f2 = f1;
-              f1 = d;
-              dx = ox;
-              dy = oy;
-              id = hash(cx, cy, seed + 9);
-            } else if (d < f2) f2 = d;
-          }
-        }
-        return { f1, f2, dx, dy, id };
-      }
-      // one glossy acrylic cell: round domed body, dark gap, specular glint top-left
-      function bubble(c, rad) {
-        const edge = c.f2 - c.f1;
-        const R = rad * (0.78 + 0.3 * c.id);
-        const body = smooth(R, R - 0.07, c.f1) * smooth(0.02, 0.07, edge);
-        const r = Math.min(1, c.f1 / R);
-        const dome = 1 - r * r * 0.6;
-        const nx = c.dx / R,
-          ny = c.dy / R;
-        const spec = Math.pow(Math.max(0, -0.55 * nx - 0.65 * ny), 4) * smooth(0.25, 0.6, r) * smooth(1, 0.8, r);
-        const hollow = c.id > 0.7 ? 0.35 + 0.65 * smooth(0.3, 0.62, r) : 1;
-        const tone = 0.5 + 0.4 * c.id;
-        const rim = smooth(0.62, 0.9, r) * smooth(1.0, 0.9, r) * 0.45;
-        return body * (tone * dome * hollow + rim + 0.9 * spec);
-      }
-
-      // ---------- acrylic-pour fluid, one hue ----------
-      (function drawFluid() {
-        const W = 960,
-          H = 540;
-        const c = document.getElementById("fluid").getContext("2d");
-        const img = c.createImageData(W, H);
-        const css = getComputedStyle(document.documentElement);
-        const stops = [
-          [0.0, [4, 0, 3]],
-          [0.3, hex(css.getPropertyValue("--hue-deep").trim())],
-          [0.62, hex(css.getPropertyValue("--hue-mid").trim())],
-          [0.84, hex(css.getPropertyValue("--hue-hot").trim())],
-          [1.0, [255, 222, 244]],
-        ];
-        const ramp = (t) => {
-          t = Math.min(1, Math.max(0, t));
-          for (let i = 0; i < stops.length - 1; i++) {
-            const [t0, c0] = stops[i],
-              [t1, c1] = stops[i + 1];
-            if (t <= t1) {
-              const k = (t - t0) / (t1 - t0);
-              return [c0[0] + (c1[0] - c0[0]) * k, c0[1] + (c1[1] - c0[1]) * k, c0[2] + (c1[2] - c0[2]) * k];
-            }
-          }
-          return stops[stops.length - 1][1];
-        };
-
-        for (let y = 0; y < H; y++) {
-          for (let x = 0; x < W; x++) {
-            const px = (x / H) * 1.35 + 0.3,
-              py = (y / H) * 1.35 + 0.7;
-            const qx = fbm(px, py),
-              qy = fbm(px + 5.2, py + 1.3);
-            const rx = fbm(px + 3.5 * qx + 1.7, py + 3.5 * qy + 9.2),
-              ry = fbm(px + 3.5 * qx + 8.3, py + 3.5 * qy + 2.8);
-            const v = fbm(px + 2.8 * rx, py + 2.8 * ry);
-
-            // low-frequency warp keeps cell edges smooth
-            const wx = px + 0.45 * qx,
-              wy = py + 0.45 * qy;
-
-            const dv = Math.abs(v - 0.53);
-            const tinyW = smooth(0.045, 0.025, dv);
-            const midW = smooth(0.1, 0.07, dv) * (1 - tinyW);
-            const bigW = 1 - tinyW - midW;
-            let L = 0;
-            if (bigW > 0.001) L += bigW * bubble(cellular(wx * 6, wy * 6, 21), 0.6);
-            if (midW > 0.001) L += midW * bubble(cellular(wx * 11, wy * 11, 33), 0.6);
-            if (tinyW > 0.001) L += tinyW * bubble(cellular(wx * 22, wy * 22, 47), 0.58);
-
-            // glossy pour sheet at the fringes of the cell fields
-            const sheet = 0.3 + 0.55 * Math.pow(Math.abs(Math.sin(v * 26 + rx * 4)), 4);
-            const cellZone = smooth(0.4, 0.47, v);
-            L = L * cellZone + sheet * (1 - cellZone) * smooth(0.3, 0.4, v);
-
-            const [r, g, b] = ramp(L);
-            const i = (y * W + x) * 4;
-            img.data[i] = r;
-            img.data[i + 1] = g;
-            img.data[i + 2] = b;
-            img.data[i + 3] = 255;
-          }
-        }
-        c.putImageData(img, 0, 0);
-      })();
-
-      // ---------- grain ----------
-      (function drawGrain() {
-        const c = document.getElementById("grain").getContext("2d");
-        const img = c.createImageData(1920, 1080);
-        let s = 1337;
-        for (let i = 0; i < img.data.length; i += 4) {
-          s = (Math.imul(s, 1664525) + 1013904223) | 0;
-          const v = (s >>> 24) & 255;
-          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-          img.data[i + 3] = 255;
-        }
-        c.putImageData(img, 0, 0);
-      })();
-
-      // ---------- barcode ----------
-      (function drawBarcode() {
-        const svg = document.getElementById("barcode");
-        const pattern = [3, 1, 1, 2, 4, 1, 1, 3, 2, 1, 1, 1, 3, 2, 1, 4, 1, 2, 1, 1, 2, 3, 1, 1, 4, 2, 1, 1, 2, 1, 3, 1, 1, 2, 1, 3, 2, 1, 1, 3];
-        let x = 0,
-          on = true,
-          out = "";
-        for (const w of pattern) {
-          const width = w * 2.2;
-          if (on) out += `<rect x="${x.toFixed(1)}" y="0" width="${width.toFixed(1)}" height="70" fill="#ffffff"/>`;
-          x += width;
-          on = !on;
-        }
-        svg.setAttribute("viewBox", `0 0 ${x.toFixed(1)} 70`);
-        svg.innerHTML = out;
-      })();
-
-      // ---------- timeline ----------
       const tl = gsap.timeline({ paused: true });
-      tl.fromTo("#fluid", { scale: 1.12, rotation: 3 }, { scale: 1, rotation: 0, duration: 3, ease: "power2.out" }, 0);
-      tl.fromTo("#word", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: "power4.out" }, 0.3);
-      tl.fromTo("#tag", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0.7);
+      // Example: tl.fromTo("#title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6 }, 0);
       window.__timelines["main"] = tl;
+      tl.seek(0);
     </script>
   </body>
 </html>
