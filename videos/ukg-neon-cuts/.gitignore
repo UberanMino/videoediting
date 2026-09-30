@@ -1,0 +1,5 @@
+renders/
+snapshots/
+.hyperframes/
+# user-supplied beat audio; not committed
+assets/beat7.m4a
