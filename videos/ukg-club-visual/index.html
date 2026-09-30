@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>UKG Club Visual</title>
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      #gl {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        transform-origin: 50% 50%;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+      }
+      .face-wrap {
+        position: absolute;
+        left: 40px;
+        top: 420px;
+        width: 1000px;
+        height: 1250px;
+        transform-origin: 423px 540px;
+        will-change: transform, opacity;
+      }
+      .face-wrap svg {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1000px;
+        height: 1250px;
+        overflow: visible;
+      }
+      .ghost {
+        mix-blend-mode: screen;
+      }
+      .fog {
+        position: absolute;
+        left: -540px;
+        top: -960px;
+        width: 2160px;
+        height: 3840px;
+        background-size: 1080px 1080px;
+        background-blend-mode: multiply;
+        mix-blend-mode: screen;
+        pointer-events: none;
+        opacity: 0;
+      }
+      #grain,
+      #flash,
+      #fade {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #grain {
+        opacity: 0.1;
+        mix-blend-mode: overlay;
+        background-size: 384px 384px;
+      }
+      #flash {
+        background: #fff4fb;
+        opacity: 0;
+        mix-blend-mode: screen;
+      }
+      #fade {
+        background: #000;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="15.232"
+      data-width="1080"
+      data-height="1920"
+    >
+      <canvas id="gl" width="720" height="1280"></canvas>
+
+      <!-- face shots: neon rim-lit silhouette with sunglasses -->
+      <section id="sc-face1" class="scene clip" data-start="2.368" data-duration="0.86" data-track-index="1" data-layout-allow-overflow>
+        <div class="face-wrap" id="fw1"></div>
+      </section>
+      <section id="sc-face2" class="scene clip" data-start="4.969" data-duration="0.882" data-track-index="1" data-layout-allow-overflow>
+        <div class="face-wrap" id="fw2"></div>
+      </section>
+      <section id="sc-face3" class="scene clip" data-start="7.57" data-duration="0.882" data-track-index="1" data-layout-allow-overflow>
+        <div class="face-wrap" id="fw3"></div>
+      </section>
+      <section id="sc-face4" class="scene clip" data-start="11.935" data-duration="0.859" data-track-index="1" data-layout-allow-overflow>
+        <div class="face-wrap" id="fw4a"></div>
+        <div class="face-wrap" id="fw4b"></div>
+      </section>
+      <section id="sc-face5" class="scene clip" data-start="13.9" data-duration="1.332" data-track-index="1" data-layout-allow-overflow>
+        <div class="face-wrap" id="fw5"></div>
+      </section>
+
+      <div class="fog" id="fog1"></div>
+      <div class="fog" id="fog2"></div>
+      <div id="grain"></div>
+      <div id="flash"></div>
+      <div id="fade"></div>
+
+      <audio id="beat" src="assets/beat.m4a" data-start="0" data-duration="15.232" data-track-index="11"></audio>
+    </div>
+
+    <script>
+      (function () {
+        const DUR = 15.232;
+        const FPS = 30;
+        const NS = "http://www.w3.org/2000/svg";
+        const $ = (id) => document.getElementById(id);
+
+        // ---------- timing (audiomap.json + band onsets, 136 BPM UKG 2-step) ----------
+        const BEATS = [
+          -0.255, 0.186, 0.627, 1.068, 1.486, 1.927, 2.368, 2.786, 3.228, 3.669, 4.11, 4.528, 4.969, 5.41, 5.851, 6.269, 6.711, 7.129,
+          7.57, 8.011, 8.452, 8.87, 9.311, 9.752, 10.194, 10.612, 11.053, 11.494, 11.935, 12.353, 12.794, 13.235, 13.677, 14.095,
+          14.489, 14.861, 15.3,
+        ];
+        const DOWN = [1.486, 3.228, 4.969, 6.711, 8.452, 10.194, 11.935, 13.677];
+        const KICKS = [1.474, 2.345, 3.669, 4.54, 4.969, 5.805, 7.152, 7.546, 7.988, 8.452, 10.623, 11.053, 11.923, 14.071, 14.547, 14.977];
+        const HITS = [1.916, 2.786, 3.646, 4.516, 4.737, 5.387, 6.258, 7.129, 7.999, 8.44, 8.87, 9.451, 9.741, 10.6, 11.691, 12.144, 12.341, 12.934, 14.083, 14.954, 15.07];
+
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, k) => a + (b - a) * k;
+        const smooth = (a, b, x) => {
+          const k = clamp((x - a) / (b - a), 0, 1);
+          return k * k * (3 - 2 * k);
+        };
+        const easeOut = (k) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
+        function pulse(list, t, decay) {
+          let v = 0;
+          for (const x of list) {
+            if (x > t + 1e-6) break;
+            v = Math.max(v, Math.exp(-(t - x) * decay));
+          }
+          return v;
+        }
+        function beatInfo(t) {
+          let i = 0;
+          for (let k = 0; k < BEATS.length - 1; k++) if (BEATS[k] <= t + 1e-6) i = k;
+          const ph = clamp((t - BEATS[i]) / (BEATS[i + 1] - BEATS[i]), 0, 1);
+          return { i, ph, count: i + ph };
+        }
+        function mulberry32(a) {
+          return function () {
+            a |= 0;
+            a = (a + 0x6d2b79f5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+
+        // ---------- palette (linear, pre-tonemap) ----------
+        const MAG = [1.0, 0.16, 0.72],
+          CYAN = [0.18, 0.72, 1.0],
+          VIOLET = [0.55, 0.28, 1.0],
+          AMBER = [1.0, 0.6, 0.22],
+          GREEN = [0.2, 1.0, 0.35],
+          RED = [1.0, 0.07, 0.12],
+          BLUE = [0.14, 0.28, 1.0],
+          WHITE = [1.0, 0.94, 0.9];
+
+        // ---------- shot list ----------
+        // sc: 0 fog/backlight · 1 mirror ball · 2 lasers · 3 liquid chrome · 4 LED floor · 5 moving heads + crowd · 6 vinyl
+        const SHOTS = [
+          {
+            s: 0, e: 1.486, sc: 0,
+            u(l, t, U) {
+              U.P0 = [0.0, 0.25 + 0.75 * smooth(0, 1.3, t), 0.0, 0.45 * smooth(0.5, 1.4, t)];
+              U.cA = BLUE; U.cB = MAG;
+              U.zoom = 1.0 + l * 0.08;
+              U.exp = 0.95;
+              if (t > 1.3 && t < 1.47) U.P0[1] *= 0.35 + 0.65 * (Math.floor(t * 24) % 2);
+            },
+          },
+          {
+            s: 1.486, e: 2.368, sc: 1, ca: 1,
+            u(l, t, U) {
+              const d = easeOut(l / 0.5);
+              U.P0 = [0.0, lerp(0.34, 0.15, d), 0.17, 0.55];
+              U.P1 = [1.0, 0.9, 1.0, 0];
+              U.cA = MAG; U.cB = CYAN; U.cC = AMBER;
+              U.zoom = 1.06 - l * 0.05;
+              U.rot = -0.03 + l * 0.04;
+            },
+          },
+          {
+            s: 2.368, e: 3.228, sc: 0,
+            u(l, t, U) {
+              U.P0 = [0.15, 0.8, 1.0, 0.25];
+              U.cA = VIOLET; U.cB = MAG;
+              U.zoom = 1.02 + l * 0.04;
+            },
+          },
+          {
+            s: 3.228, e: 4.11, sc: 2, ca: 1,
+            u(l, t, U) {
+              U.P0 = [0.0, -0.56, Math.PI / 2, 1.5];
+              U.P1 = [0.28, 0, 0, 0.0];
+              U.cA = GREEN; U.cB = MAG;
+              U.zoom = 1.0 + l * 0.05;
+              U.rot = Math.sin(l * 2) * 0.04;
+            },
+          },
+          {
+            s: 4.11, e: 4.969, sc: 1, ca: 1,
+            u(l, t, U) {
+              U.P0 = [0.06, -0.03, 0.56, 0.9];
+              U.P1 = [0.5, 0.0, 1.4, 0];
+              U.cA = AMBER; U.cB = MAG; U.cC = CYAN;
+              U.zoom = 1.0 + l * 0.06;
+              U.rot = 0.1 - l * 0.08;
+            },
+          },
+          {
+            s: 4.969, e: 5.851, sc: 0,
+            u(l, t, U) {
+              U.P0 = [-0.2, 0.7, 1.2, 0.35];
+              U.cA = CYAN; U.cB = MAG;
+              U.zoom = 1.1 + l * 0.05;
+            },
+          },
+          {
+            s: 5.851, e: 6.711, sc: 3,
+            u(l, t, U) {
+              U.kal = l < 0.42 ? 6 : 8;
+              U.warp = 0.35;
+              U.hue = l * 0.9;
+              U.cA = VIOLET; U.cB = MAG; U.cC = CYAN;
+              U.zoom = 1.25 - l * 0.2;
+              U.rot = l * 0.5;
+            },
+          },
+          {
+            s: 6.711, e: 7.57, sc: 4,
+            u(l, t, U) {
+              U.P0 = [0.1, 0.3, 2.2, beatInfo(t).i];
+              U.cA = MAG; U.cB = CYAN; U.cC = VIOLET;
+              U.zoom = 1.04 + l * 0.04;
+              U.rot = -0.05 + l * 0.06;
+            },
+          },
+          {
+            s: 7.57, e: 8.15, sc: 0,
+            u(l, t, U) {
+              U.P0 = [0.3, 0.75, 1.1, 0.3];
+              U.cA = MAG; U.cB = BLUE;
+              U.zoom = 1.02 + l * 0.05;
+            },
+          },
+          {
+            // seen through the left lens during the zoom-through, then full frame
+            s: 8.15, e: 9.311, sc: 1, ca: 1,
+            u(l, t, U) {
+              const k = smooth(8.452, 9.311, t);
+              U.P0 = [lerp(-0.04, 0.0, k), lerp(0.0, 0.08, k), lerp(0.1, 0.2, k), 0.75];
+              U.P1 = [1.25, 1.1, 1.0, 0];
+              U.cA = CYAN; U.cB = MAG; U.cC = WHITE;
+              U.zoom = 1.0 + 0.05 * k;
+              U.rot = t > 8.452 ? (t - 8.452) * 0.22 : 0;
+            },
+          },
+          {
+            s: 9.311, e: 10.194, sc: 5,
+            u(l, t, U) {
+              U.P0 = [1.3, beatInfo(t).ph, 0, 0];
+              U.cA = AMBER; U.cB = BLUE;
+              U.zoom = 1.08 - l * 0.06;
+            },
+          },
+          {
+            s: 10.194, e: 11.053, sc: 6, ca: 1,
+            u(l, t, U) {
+              U.P0 = [0.22, -0.06, 0.44, 2.2 + l * 0.9];
+              U.P1 = [4.0, 0, 0, 0];
+              U.cA = MAG; U.cB = CYAN; U.cC = VIOLET;
+              U.zoom = 1.0 + l * 0.08;
+              U.rot = -0.12 + l * 0.05;
+            },
+          },
+          {
+            s: 11.053, e: 11.935, sc: 2, ca: 1,
+            u(l, t, U) {
+              U.P0 = [0.0, 0.56, -Math.PI / 2, 1.15];
+              U.P1 = [0.35, 0, 0, 2.0];
+              U.cA = RED; U.cB = BLUE;
+              U.zoom = 1.03 + l * 0.05;
+            },
+          },
+          {
+            s: 11.935, e: 12.794, sc: 0,
+            u(l, t, U) {
+              U.P0 = [0.0, 0.8, 1.0, 0.4];
+              U.cA = VIOLET; U.cB = CYAN;
+              U.warp = 0.25;
+              U.hue = Math.sin(l * 3) * 0.25;
+            },
+          },
+          // 2-beat montage: four half-beat cuts
+          {
+            s: 12.794, e: 13.015, sc: 1, ca: 1,
+            u(l, t, U) {
+              U.P0 = [-0.05, 0.02, 0.5, 1.1];
+              U.P1 = [0.6, 0, 1.4, 0];
+              U.cA = MAG; U.cB = AMBER; U.cC = CYAN;
+            },
+          },
+          {
+            s: 13.015, e: 13.235, sc: 2, ca: 1,
+            u(l, t, U) {
+              U.P0 = [-0.3, -0.56, 1.2, 1.3];
+              U.P1 = [0.3, 0, 0, 4.0];
+              U.cA = CYAN; U.cB = MAG;
+            },
+          },
+          {
+            s: 13.235, e: 13.456, sc: 4,
+            u(l, t, U) {
+              U.P0 = [0.02, 0.3, 3.0, 37];
+              U.cA = VIOLET; U.cB = MAG; U.cC = CYAN;
+              U.rot = 0.12;
+            },
+          },
+          {
+            s: 13.456, e: 13.677, sc: 3,
+            u(l, t, U) {
+              U.kal = 5;
+              U.warp = 0.4;
+              U.cA = CYAN; U.cB = MAG; U.cC = AMBER;
+            },
+          },
+          {
+            s: 13.677, e: DUR + 1, sc: 1, ca: 1,
+            u(l, t, U) {
+              const k = easeOut(l / 1.4);
+              U.P0 = [0.0, lerp(-0.02, 0.1, k), lerp(0.42, 0.15, k), 0.6 + l * 0.3];
+              U.P1 = [1.2 + l * 0.6, 1.0 + l * 0.4, 1.0, 0];
+              U.cA = MAG; U.cB = CYAN; U.cC = AMBER;
+              U.rot = l * 0.12;
+            },
+          },
+        ];
+        function shotAt(t) {
+          for (const s of SHOTS) if (t >= s.s && t < s.e) return s;
+          return SHOTS[SHOTS.length - 1];
+        }
+
+        // ---------- fog texture (seeded, tileable, generated once) ----------
+        function fogTexture(seed) {
+          const N = 256;
+          const r = mulberry32(seed);
+          const lat = [];
+          for (let o = 0; o < 5; o++) {
+            const P = 4 << o;
+            const g = new Float32Array(P * P);
+            for (let i = 0; i < g.length; i++) g[i] = r();
+            lat.push({ P, g });
+          }
+          const c = document.createElement("canvas");
+          c.width = c.height = N;
+          const x = c.getContext("2d");
+          const img = x.createImageData(N, N);
+          for (let y = 0; y < N; y++)
+            for (let xx = 0; xx < N; xx++) {
+              let v = 0,
+                a = 0.5;
+              for (const { P, g } of lat) {
+                const fx = (xx / N) * P,
+                  fy = (y / N) * P;
+                const ix = Math.floor(fx),
+                  iy = Math.floor(fy);
+                let tx = fx - ix,
+                  ty = fy - iy;
+                tx = tx * tx * (3 - 2 * tx);
+                ty = ty * ty * (3 - 2 * ty);
+                const at = (i, j) => g[((j + P) % P) * P + ((i + P) % P)];
+                const v0 = at(ix, iy) + (at(ix + 1, iy) - at(ix, iy)) * tx;
+                const v1 = at(ix, iy + 1) + (at(ix + 1, iy + 1) - at(ix, iy + 1)) * tx;
+                v += a * (v0 + (v1 - v0) * ty);
+                a *= 0.5;
+              }
+              const d = Math.pow(clamp((v - 0.35) * 1.8, 0, 1), 1.6) * 255;
+              const k = (y * N + xx) * 4;
+              img.data[k] = img.data[k + 1] = img.data[k + 2] = d;
+              img.data[k + 3] = 255;
+            }
+          x.putImageData(img, 0, 0);
+          return c.toDataURL();
+        }
+        $("fog1").style.backgroundImage = `url(${fogTexture(11)})`;
+        $("fog2").style.backgroundImage = `url(${fogTexture(29)})`;
+        (function () {
+          const c = document.createElement("canvas");
+          c.width = c.height = 192;
+          const x = c.getContext("2d");
+          const img = x.createImageData(192, 192);
+          const r = mulberry32(42);
+          for (let i = 0; i < img.data.length; i += 4) {
+            const v = Math.floor(r() * 255);
+            img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+            img.data[i + 3] = 255;
+          }
+          x.putImageData(img, 0, 0);
+          $("grain").style.backgroundImage = `url(${c.toDataURL()})`;
+        })();
+
+        // ---------- neon face silhouette with sunglasses ----------
+        const PATH = {
+          hair: "M500,160 C690,160 792,300 782,500 C776,640 800,760 832,880 C764,906 702,896 652,862 L348,862 C298,896 236,906 168,880 C200,760 224,640 218,500 C208,300 310,160 500,160 Z",
+          face: "M332,478 C332,392 402,332 500,332 C598,332 668,392 668,478 C670,600 650,700 600,770 C570,815 535,840 500,842 C465,840 430,815 400,770 C350,700 330,600 332,478 Z",
+          fringe: "M328,468 C338,352 420,286 522,290 C612,294 682,352 676,470 C640,402 580,372 520,380 C450,390 382,420 328,468 Z",
+          body: "M438,800 L438,928 C398,958 300,974 200,1010 C128,1036 88,1100 78,1260 L922,1260 C912,1100 872,1036 800,1010 C700,974 602,958 562,928 L562,800 Z",
+          lensL: "M346,506 C346,490 362,484 380,485 L478,490 C491,491 497,500 495,513 L488,560 C484,586 464,598 440,598 L394,596 C364,594 348,576 347,552 Z",
+          lensR: "M654,506 C654,490 638,484 620,485 L522,490 C509,491 503,500 505,513 L512,560 C516,586 536,598 560,598 L606,596 C636,594 652,576 653,552 Z",
+          bridge: "M495,506 Q500,497 505,506",
+          temples: "M347,512 L326,506 M653,512 L674,506",
+          nose: "M506,604 C512,642 522,670 512,690 C504,700 490,700 481,693",
+          lipsU: "M444,736 C468,722 489,721 500,728 C511,721 532,722 556,736 C530,744 470,744 444,736 Z",
+          lipsL: "M449,738 C468,768 532,768 551,738 C526,747 474,747 449,738 Z",
+          chain: "M432,934 C462,990 538,990 568,934",
+          jaw: "M372,720 C400,775 450,822 500,828 C550,822 600,775 628,720",
+        };
+        let FID = 0;
+        function sv(tag, attrs, parent) {
+          const e = document.createElementNS(NS, tag);
+          for (const k in attrs) e.setAttribute(k, attrs[k]);
+          if (parent) parent.appendChild(e);
+          return e;
+        }
+        function makeFace(host, opts = {}) {
+          const id = "f" + FID++;
+          const svg = sv("svg", { viewBox: "0 0 1000 1250" }, null);
+          if (opts.ghost) svg.classList.add("ghost");
+          host.appendChild(svg);
+          const defs = sv("defs", {}, svg);
+          const rim = sv("linearGradient", { id: id + "rim", x1: "0", y1: "0", x2: "1", y2: "0.3" }, defs);
+          sv("stop", { offset: "0%", "stop-color": opts.c1 || "#ff2bd6" }, rim);
+          sv("stop", { offset: "50%", "stop-color": opts.c2 || "#9a6bff" }, rim);
+          sv("stop", { offset: "100%", "stop-color": opts.c3 || "#2be4ff" }, rim);
+          const skin = sv("radialGradient", { id: id + "skin", cx: "35%", cy: "30%", r: "80%" }, defs);
+          sv("stop", { offset: "0%", "stop-color": "#1a0b24" }, skin);
+          sv("stop", { offset: "100%", "stop-color": "#040108" }, skin);
+          const lens = sv("linearGradient", { id: id + "lens", gradientUnits: "userSpaceOnUse", x1: "300", y1: "470", x2: "700", y2: "610" }, defs);
+          [
+            ["0%", "#0b0016"],
+            ["30%", "#2a0845"],
+            ["44%", "#ff4fd8"],
+            ["47%", "#fff6fd"],
+            ["50%", "#58e0ff"],
+            ["58%", "#1c0535"],
+            ["100%", "#030008"],
+          ].forEach(([o, c]) => sv("stop", { offset: o, "stop-color": c }, lens));
+          const mask = sv("mask", { id: id + "hole", maskUnits: "userSpaceOnUse", x: "-20000", y: "-20000", width: "40000", height: "40000" }, defs);
+          sv("rect", { x: "-20000", y: "-20000", width: "40000", height: "40000", fill: "#fff" }, mask);
+          sv("path", { d: PATH.lensL, fill: "#000" }, mask);
+          sv("path", { d: PATH.lensR, fill: "#000" }, mask);
+
+          const ghost = !!opts.ghost;
+          const fill = ghost ? "none" : `url(#${id}skin)`;
+          const stroke = ghost ? opts.ghost : `url(#${id}rim)`;
+          const W = { "stroke-linejoin": "round", "stroke-linecap": "round" };
+          const body = sv("g", {}, svg);
+          sv("path", { ...W, d: PATH.body, fill, stroke, "stroke-width": 5 }, body);
+          const chain = sv("path", { ...W, d: PATH.chain, fill: "none", stroke: ghost ? opts.ghost : "#ffd27a", "stroke-width": 7, "stroke-dasharray": "1 13" }, body);
+          const head = sv("g", {}, svg);
+          const skinG = sv("g", { mask: `url(#${id}hole)` }, head);
+          const backdrop = sv("rect", { x: "-20000", y: "-20000", width: "40000", height: "40000", fill: "#030106", opacity: 0 }, skinG);
+          sv("path", { ...W, d: PATH.hair, fill, stroke, "stroke-width": 5 }, skinG);
+          sv("path", { ...W, d: PATH.face, fill, stroke, "stroke-width": 3, "stroke-opacity": 0.55 }, skinG);
+          sv("path", { ...W, d: PATH.fringe, fill, stroke, "stroke-width": 4 }, skinG);
+          sv("path", { ...W, d: PATH.jaw, fill: "none", stroke, "stroke-width": 2, "stroke-opacity": 0.35 }, skinG);
+          sv("path", { ...W, d: PATH.nose, fill: "none", stroke, "stroke-width": 3, "stroke-opacity": 0.7 }, skinG);
+          sv("path", { ...W, d: PATH.lipsU, fill: ghost ? "none" : "#c2187f", stroke: ghost ? opts.ghost : "#ff5bd0", "stroke-width": 3 }, skinG);
+          sv("path", { ...W, d: PATH.lipsL, fill: ghost ? "none" : "#e0279a", stroke: ghost ? opts.ghost : "#ff5bd0", "stroke-width": 3 }, skinG);
+          const lenses = sv("g", {}, head);
+          const lensFill = [];
+          [PATH.lensL, PATH.lensR].forEach((d) => {
+            lensFill.push(sv("path", { d, fill: ghost ? "none" : `url(#${id}lens)` }, lenses));
+            sv("path", { ...W, d, fill: "none", stroke: ghost ? opts.ghost : "#f4eaff", "stroke-width": 5 }, lenses);
+          });
+          sv("path", { ...W, d: PATH.bridge, fill: "none", stroke: ghost ? opts.ghost : "#f4eaff", "stroke-width": 5 }, lenses);
+          sv("path", { ...W, d: PATH.temples, fill: "none", stroke: ghost ? opts.ghost : "#f4eaff", "stroke-width": 5 }, lenses);
+          const ears = [];
+          [
+            [332, 628],
+            [668, 628],
+          ].forEach(([x, y]) => {
+            const g = sv("g", {}, head);
+            sv("circle", { cx: x, cy: y + 40, r: 36, fill: "none", stroke: ghost ? opts.ghost : "#ffd27a", "stroke-width": 6 }, g);
+            ears.push({ g, x, y });
+          });
+          // draw-on: every stroked path gets a dash length
+          const strokes = [...svg.querySelectorAll("path")].filter((p) => p.getAttribute("stroke") && !p.getAttribute("stroke-dasharray"));
+          strokes.forEach((p) => {
+            const L = p.getTotalLength ? p.getTotalLength() : 3000;
+            p.dataset.len = L;
+          });
+          return {
+            svg,
+            set(st) {
+              head.setAttribute("transform", `translate(${st.hx.toFixed(1)},${st.hy.toFixed(1)}) rotate(${st.tilt.toFixed(2)} 500 850)`);
+              body.setAttribute("transform", `translate(${(st.hx * 0.4).toFixed(1)},${(st.hy * 0.5).toFixed(1)}) rotate(${(-st.tilt * 0.35).toFixed(2)} 500 1100)`);
+              ears.forEach((e) => e.g.setAttribute("transform", `rotate(${st.swing.toFixed(2)} ${e.x} ${e.y})`));
+              lens.setAttribute("gradientTransform", `translate(${st.glint.toFixed(1)},0)`);
+              lensFill.forEach((l) => l.setAttribute("opacity", st.lensOp.toFixed(3)));
+              backdrop.setAttribute("opacity", st.backdrop.toFixed(3));
+              chain.setAttribute("stroke-dashoffset", (-st.glint * 0.05).toFixed(1));
+              const draw = st.draw;
+              for (const p of strokes) {
+                const L = +p.dataset.len;
+                if (draw >= 1) {
+                  p.removeAttribute("stroke-dasharray");
+                  p.removeAttribute("stroke-dashoffset");
+                } else {
+                  p.setAttribute("stroke-dasharray", `${L} ${L}`);
+                  p.setAttribute("stroke-dashoffset", (L * (1 - draw)).toFixed(1));
+                }
+              }
+              if (!ghost) {
+                skinG.style.opacity = "1";
+                const f = st.fillOp;
+                skinG.querySelectorAll("path").forEach((p) => {
+                  if (p.getAttribute("fill") && p.getAttribute("fill") !== "none") p.setAttribute("fill-opacity", f.toFixed(3));
+                });
+                body.firstChild.setAttribute("fill-opacity", f.toFixed(3));
+              }
+            },
+          };
+        }
+        function makeRig(host, ghosts) {
+          const g1 = ghosts ? makeFace(host, { ghost: "#2be4ff" }) : null;
+          const g2 = ghosts ? makeFace(host, { ghost: "#ff2bd6" }) : null;
+          const main = makeFace(host);
+          return { host, main, g1, g2 };
+        }
+        const RIG1 = makeRig($("fw1"), true);
+        const RIG2 = makeRig($("fw2"), true);
+        const RIG3 = makeRig($("fw3"), true);
+        const RIG4a = makeRig($("fw4a"), true);
+        const RIG4b = makeRig($("fw4b"), true);
+        const RIG5 = makeRig($("fw5"), false);
+
+        // groove: head dips on kicks, swings across 2 beats, earrings lag behind
+        function headState(t, amp) {
+          const b = beatInfo(t);
+          const k = pulse(KICKS, t, 9) + 0.5 * pulse(HITS, t, 12);
+          const sway = Math.sin(b.count * Math.PI);
+          return {
+            hx: sway * 14 * amp,
+            hy: (k * 16 + Math.sin(b.count * 2 * Math.PI) * 4) * amp,
+            tilt: sway * 4.5 * amp,
+            swing: -Math.sin((b.count - 0.35) * Math.PI) * 14 * amp,
+            glint: ((t * 260) % 900) - 450,
+            lensOp: 1,
+            backdrop: 0,
+            draw: 1,
+            fillOp: 0.94,
+          };
+        }
+        function renderRig(rig, t, o) {
+          const st = headState(t, o.amp == null ? 1 : o.amp);
+          Object.assign(st, o.over || {});
+          rig.main.set(st);
+          [rig.g1, rig.g2].forEach((g, k) => {
+            if (!g) return;
+            const gs = headState(t - (k + 1) * (o.lag || 0.07), o.amp == null ? 1 : o.amp);
+            gs.draw = st.draw;
+            g.set(gs);
+            g.svg.style.opacity = (o.ghost || 0).toFixed(3);
+            g.svg.style.transform = `translate(${((k ? 1 : -1) * (o.split || 0)).toFixed(1)}px,0)`;
+          });
+          rig.host.style.transform = `translate(${(o.x || 0).toFixed(1)}px,${(o.y || 0).toFixed(1)}px) scale(${(o.s || 1).toFixed(4)})${o.flip ? " scaleX(-1)" : ""}`;
+          rig.host.style.opacity = (o.op == null ? 1 : o.op).toFixed(3);
+          rig.main.svg.style.filter = o.noGlow ? "none" : `drop-shadow(0 0 6px rgba(255,80,220,.9)) drop-shadow(0 0 22px rgba(120,90,255,.6))`;
+        }
+
+        function renderFaces(t) {
+          const bp = pulse(KICKS, t, 8);
+          // F1: first reveal, neon lines draw on
+          if (t >= 2.368 && t < 3.228) {
+            const l = t - 2.368;
+            renderRig(RIG1, t, { s: 0.98 + l * 0.04 + bp * 0.01, y: 20, ghost: 0.3 * smooth(0.3, 0.5, l), over: { draw: easeOut(l / 0.32), fillOp: 0.94 * smooth(0.18, 0.4, l) } });
+          }
+          // F2: sunglasses close-up with chromatic echo split
+          if (t >= 4.969 && t < 5.851) {
+            const l = t - 4.969;
+            renderRig(RIG2, t, { s: 2.25 + l * 0.12 + bp * 0.03, x: 40, y: 70, ghost: 0.45, split: 10 + 18 * bp, lag: 0.05 });
+          }
+          // F3: medium, then zoom through the left lens into the mirror ball
+          if (t >= 7.57 && t < 8.452) {
+            const l = t - 7.57;
+            const z = smooth(8.12, 8.452, t);
+            const s = (1.0 + l * 0.05) * Math.pow(30, z * z);
+            renderRig(RIG3, t, {
+              s,
+              amp: 1 - smooth(7.95, 8.12, t),
+              ghost: 0.3 * (1 - z),
+              noGlow: z > 0.05,
+              over: { lensOp: 1 - smooth(8.1, 8.25, t), backdrop: smooth(8.12, 8.2, t) },
+            });
+          }
+          // F4: mirrored duo, psychedelic double
+          if (t >= 11.935 && t < 12.794) {
+            const l = t - 11.935;
+            const o = { s: 0.82, y: 90, ghost: 0.5, split: 14 + 20 * bp, lag: 0.09 };
+            renderRig(RIG4a, t, { ...o, x: -250 - l * 20 });
+            renderRig(RIG4b, t, { ...o, x: 250 + l * 20, flip: true });
+          }
+          // F5: ghost double exposure over the outro mirror ball
+          if (t >= 13.9) {
+            const l = t - 13.9;
+            renderRig(RIG5, t, { s: 1.7 + l * 0.1, y: -60, op: 0.3 * smooth(0, 0.5, l) * (1 - smooth(15.05, 15.15, t)), over: { fillOp: 0.0, lensOp: 0.25 } });
+          }
+        }
+
+        // ---------- WebGL ----------
+        const canvas = $("gl");
+        const gl = canvas.getContext("webgl", { preserveDrawingBuffer: true, antialias: false, alpha: false });
+        const VS = "attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }";
+        const LIB = `
+precision highp float;
+uniform vec2 uRes; uniform float uT, uL, uBeat, uHit, uPh;
+uniform vec4 uP0, uP1; uniform vec3 uCA3, uCB3, uCC3;
+uniform float uZoom, uRot, uKal, uWarp, uCA, uHue, uExp;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x), mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x), f.y); }
+float fbm(vec2 p){ float v=0., a=.5; mat2 m=mat2(1.6,1.2,-1.2,1.6); for(int i=0;i<5;i++){ v+=a*noise(p); p=m*p; a*=.5; } return v; }
+mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+vec3 hueShift(vec3 c, float a){ vec3 k=vec3(.57735); float ca=cos(a); return c*ca + cross(k,c)*sin(a) + k*dot(k,c)*(1.-ca); }
+float fogD(vec2 p, float t){ return .35 + 1.1*fbm(p*2.2 + vec2(t*.07,-t*.03) + fbm(p*1.3 - t*.05)*.9); }
+float beam(vec2 p, vec2 o, float a, float w0, float spread, float len){
+  vec2 d=vec2(cos(a),sin(a)); vec2 v=p-o; float al=dot(v,d);
+  if (al < 0.) return 0.;
+  float pe=abs(v.x*d.y - v.y*d.x); float w=w0 + al*spread;
+  return exp(-pe*pe/(w*w))*exp(-al/len)*(w0/w*.6 + .4);
+}
+float dust(vec2 p, float t){
+  vec2 g=(p + vec2(t*.01, -t*.02))*90.; vec2 id=floor(g); vec2 f=fract(g)-.5;
+  float h=hash(id); vec2 o=(vec2(hash(id+1.3),hash(id+7.1))-.5)*.7;
+  return step(.86,h)*exp(-dot(f-o,f-o)*260.)*(.5+.5*sin(t*6.+h*40.));
+}
+vec3 spots(vec2 p, float t, float speed){
+  vec3 acc=vec3(0.);
+  for (int L=0; L<2; L++){
+    float fl=float(L);
+    vec2 g=vec2(p.x*(7.+fl*5.) + t*speed*(1.+fl*.6), p.y*(9.+fl*6.));
+    vec2 id=floor(g); vec2 f=fract(g)-.5;
+    float h=hash(id + fl*17.);
+    vec2 o=(vec2(hash(id+3.1),hash(id+5.7))-.5)*.55;
+    vec2 dd=(f-o)*vec2(.8,1.);
+    vec3 cc = h > .82 ? uCA3 : (h > .68 ? uCB3 : vec3(1.,.93,.85));
+    acc += cc*step(.5,h)*exp(-dot(dd,dd)*(70.+fl*70.))*(.8-fl*.35);
+  }
+  return acc;
+}
+vec3 env(vec3 r){
+  vec3 c=vec3(.015,.008,.03) + uCC3*.04*max(r.y,0.);
+  c += uCA3*pow(max(dot(r, normalize(vec3(-.6,.5,.6))),0.),50.)*3.5;
+  c += uCB3*pow(max(dot(r, normalize(vec3(.7,.35,.55))),0.),50.)*3.5;
+  c += vec3(1.,.92,.85)*pow(max(dot(r, normalize(vec3(.1,.9,.35))),0.),140.)*7.;
+  c += uCC3*pow(max(dot(r, normalize(vec3(-.25,-.35,.9))),0.),24.)*1.2;
+  c += uCB3*pow(max(dot(r, normalize(vec3(-.8,-.1,.5))),0.),40.)*2.5;
+  c += uCA3*pow(max(dot(r, normalize(vec3(.55,-.45,.7))),0.),40.)*2.5;
+  c += vec3(1.,.95,.9)*pow(max(dot(r, normalize(vec3(-.3,.2,.95))),0.),200.)*5.;
+  return c;
+}
+float star(vec2 d, float s){
+  d/=s; return exp(-abs(d.x)*7.)*exp(-d.y*d.y*4000.) + exp(-abs(d.y)*7.)*exp(-d.x*d.x*4000.) + exp(-dot(d,d)*500.)*2.;
+}
+
+// 0 · fog, beams, back light, dust
+vec3 sFog(vec2 p, float t){
+  float fd=fogD(p,t);
+  vec3 col=vec3(.006,.003,.012);
+  float b1=beam(p, vec2(-.42+uP0.x*.2, .62), -1.15 + .18*sin(t*.45), .008, .17, 1.4);
+  float b2=beam(p, vec2(.42-uP0.x*.2, .62), -1.99 + .2*sin(t*.37+1.), .008, .17, 1.4);
+  col += fd*(b1*uCA3 + b2*uCB3)*uP0.y*1.9*(.8+.5*uBeat);
+  col += fd*mix(uCA3,uCB3,.5)*exp(-length((p-vec2(0.,.04))*vec2(1.2,.85))*3.2)*uP0.z*(.55+.35*uBeat);
+  col += dust(p,t)*pow(b1+b2,2.)*uP0.y*4.;
+  col += spots(p*rot(.2), t, .35)*uP0.w*fd*.6;
+  return col;
+}
+// 1 · mirror ball
+vec3 sDisco(vec2 p, float t){
+  vec2 c=uP0.xy; float R=uP0.z; float ang=t*uP0.w;
+  float fd=fogD(p,t);
+  vec3 col=vec3(.004,.002,.01);
+  vec2 dp=p-c; float dist=length(dp);
+  float a=atan(dp.y,dp.x);
+  float K=36.; float bin=floor((a+ang*.35)*K/6.28318);
+  float fa=fract((a+ang*.35)*K/6.28318)-.5;
+  float ray=step(.55,hash(vec2(bin,3.)))*exp(-fa*fa*90.)*(.3+.7*hash(vec2(bin,9.)));
+  vec3 rc = hash(vec2(bin,5.)) > .5 ? uCA3 : uCB3;
+  col += rc*ray*fd*uP1.y*.6*smoothstep(R,R*1.4,dist)/(1.+dist*3.)*(.7+.6*uHit);
+  col += spots(p, t, .45)*uP1.x*fd*(.6+.5*uBeat);
+  col += mix(uCA3,uCB3,.5)*fd*.05;
+  col += vec3(.5)*exp(-abs(p.x-c.x)*900.)*step(c.y+R*.98,p.y)*.35;
+  vec2 q=dp/R; float d2=dot(q,q);
+  if (d2 < 1.){
+    vec3 n=vec3(q, sqrt(1.-d2));
+    float ca=cos(ang), sa=sin(ang);
+    vec3 no=vec3(ca*n.x + sa*n.z, n.y, -sa*n.x + ca*n.z);
+    float lat=asin(clamp(no.y,-1.,1.)); float lon=atan(no.z,no.x);
+    float rows=30.; float u=(lat/3.14159+.5)*rows; float li=floor(u);
+    float latc=((li+.5)/rows-.5)*3.14159;
+    float cols=max(4., floor(rows*2.*cos(latc)));
+    float v=(lon/6.28318+.5)*cols; float lj=floor(v);
+    float lonc=((lj+.5)/cols-.5)*6.28318;
+    float fu=fract(u), fv=fract(v);
+    float grout=smoothstep(0.,.1,fu)*smoothstep(1.,.9,fu)*smoothstep(0.,.1,fv)*smoothstep(1.,.9,fv);
+    float h=hash(vec2(li,lj));
+    vec3 nt=vec3(cos(latc)*cos(lonc), sin(latc), cos(latc)*sin(lonc));
+    nt=normalize(nt + (vec3(hash(vec2(li,lj+3.)),hash(vec2(li+7.,lj)),h)-.5)*.1);
+    vec3 nv=vec3(ca*nt.x - sa*nt.z, nt.y, sa*nt.x + ca*nt.z);
+    vec3 r=reflect(vec3(0.,0.,-1.), nv);
+    vec3 m=env(r)*(.55+.9*h)*(.8+.6*uBeat);
+    m += mix(uCA3,uCB3,hash(vec2(lj,li+9.)))*.07*h + vec3(.09)*h*h;
+    m += vec3(1.,.95,.92)*pow(hash(vec2(li,lj)+floor(t*7.)*.137),24.)*3.;
+    m=m*grout + vec3(.01)*(1.-grout);
+    m*= .3 + .7*n.z;
+    m+= vec3(.7,.75,1.)*pow(1.-n.z,3.)*.12;
+    col=mix(col, m, smoothstep(1.,.985,d2));
+  }
+  for (int k=0;k<7;k++){
+    float fk=float(k);
+    float slot=floor(t*3.1 + fk*.37);
+    float h1=hash(vec2(fk,slot)), h2=hash(vec2(slot,fk+2.));
+    vec2 sp=c + R*.85*vec2(cos(h1*6.28318), sin(h1*6.28318))*sqrt(h2);
+    float tw=pow(max(0.,sin(fract(t*3.1+fk*.37)*3.14159)),3.);
+    col += mix(vec3(1.),uCC3,.3)*star(p-sp, R*1.1)*tw*1.1;
+  }
+  return col;
+}
+// 2 · laser fan
+vec3 sLaser(vec2 p, float t){
+  float fd=fogD(p,t);
+  vec3 col=vec3(.004,0.,.012);
+  vec2 o=uP0.xy;
+  float strobe=.5 + .9*uHit;
+  for (int i=0;i<11;i++){
+    float fi=float(i);
+    float a=uP0.z + uP0.w*(fi/10.-.5) + uP1.x*sin(t*1.9 + fi*.4 + uP1.w);
+    vec2 d=vec2(cos(a),sin(a)); vec2 v=p-o; float al=dot(v,d);
+    float pe=abs(v.x*d.y - v.y*d.x);
+    float I=(exp(-pe*pe/(.0024*.0024)) + exp(-pe*pe/(.013*.013))*.22)*step(0.,al)*exp(-al*.55);
+    vec3 lc = mod(fi,2.) < .5 ? uCA3 : uCB3;
+    col += lc*I*(.2 + .95*fd)*strobe;
+  }
+  col += (uCA3+uCB3)*.5*exp(-length(p-o)*16.)*1.6;
+  col += uCA3*fd*.035 + uCB3*fd*.02;
+  return col;
+}
+// 3 · liquid chrome
+float hmap(vec2 p, float t){ vec2 q=vec2(fbm(p*1.6 + t*.12), fbm(p*1.6 + vec2(4.1,1.7) - t*.1)); return fbm(p*1.8 + q*2.2 + vec2(t*.15,0.)); }
+vec3 sChrome(vec2 p, float t){
+  p*=.8;
+  float e=.004;
+  float h=hmap(p,t), hx=hmap(p+vec2(e,0.),t), hy=hmap(p+vec2(0.,e),t);
+  vec3 n=normalize(vec3((h-hx)*22., (h-hy)*22., 1.));
+  vec3 r=reflect(vec3(0.,0.,-1.), n);
+  float band=.5+.5*sin(r.x*4. + r.y*3. + t*.6 + h*5.);
+  vec3 c=vec3(.012,.008,.02);
+  c += uCA3*pow(band,5.)*1.4;
+  c += uCB3*pow(1.-band,7.)*1.2;
+  c += uCC3*pow(max(0.,r.y),6.)*.9;
+  c += vec3(1.)*pow(max(dot(r, normalize(vec3(.3,.6,.7))),0.),90.)*3.;
+  c *= .55 + .7*(1.-n.z);
+  return c*(1.+.35*uBeat);
+}
+// 4 · LED dance floor
+vec3 sFloor(vec2 p, float t){
+  float fd=fogD(p,t);
+  vec3 col=vec3(.004,0.,.01);
+  float hz=uP0.x;
+  if (p.y < hz - .004){
+    float z=uP0.y/(hz-p.y); float x=p.x*z;
+    vec2 g=vec2(x*16., z*16. + t*uP0.z);
+    vec2 id=floor(g); vec2 f=fract(g);
+    float edge=smoothstep(0.,.07,f.x)*smoothstep(1.,.93,f.x)*smoothstep(0.,.07,f.y)*smoothstep(1.,.93,f.y);
+    float h=hash(id);
+    float lit=step(.58, hash(id + uP0.w*1.37));
+    float ring=exp(-pow(length(id - vec2(0., floor(t*uP0.z) + 9.)) - uPh*9., 2.)*.5);
+    vec3 tc = h < .33 ? uCA3 : (h < .66 ? uCB3 : uCC3);
+    float I=(lit*.8 + ring*.9)*(.35+.9*uBeat);
+    col += tc*I*(edge*(1.1+.5*(1.-f.y)) + .15);
+    col *= exp(-z*.28);
+    col *= smoothstep(0.,.07,hz-p.y);
+  }
+  col += uCB3*exp(-abs(p.y-hz)*28.)*.3;
+  col += fd*uCA3*beam(p, vec2(-.3,.62), -1.3+.3*sin(t*.8), .01,.28,1.2)*.8;
+  col += fd*uCB3*beam(p, vec2(.3,.62), -1.84+.3*sin(t*.7+2.), .01,.28,1.2)*.8;
+  col += fd*uCC3*.035;
+  return col;
+}
+// 5 · moving heads + crowd silhouette
+vec3 sHeads(vec2 p, float t){
+  float fd=fogD(p,t);
+  vec3 col=vec3(.004,0.,.01);
+  for (int i=0;i<6;i++){
+    float fi=float(i);
+    vec2 o=vec2(-.26 + fi*.104, .47);
+    float a=-1.5708 + .5*sin(t*(1.+fi*.07) + fi*1.3 + uP0.x)*(mod(fi,2.)<.5?1.:-1.);
+    float b=beam(p, o, a, .004, .055, 1.5)*1.6;
+    vec2 d=vec2(cos(a),sin(a)); float al=dot(p-o,d);
+    b*= .85 + .15*sin(al*40. - t*3. + fi);
+    vec3 bc = mod(fi,2.)<.5 ? uCA3 : uCB3;
+    col += bc*b*(.25+1.05*fd)*(.65+.7*uBeat);
+    col += bc*exp(-length(p-o)*55.)*2.2;
+  }
+  col += vec3(.06,.05,.08)*smoothstep(.007,.0,abs(p.y-.478));
+  float base=-.37; float m=0.;
+  for (int k=0;k<15;k++){
+    float fk=float(k);
+    float hx=-.36 + fk*.051 + (hash(vec2(fk,1.))-.5)*.02;
+    float bob=.012*sin((uP0.y + fk*.13)*6.28318);
+    vec2 hc=vec2(hx, base + .025*hash(vec2(fk,2.)) + bob);
+    m=max(m, smoothstep(.031,.026, length((p-hc)*vec2(1.,.82))));
+    m=max(m, smoothstep(.004,-.004, p.y-(hc.y-.028))*smoothstep(.075,.058, abs(p.x-hx)));
+  }
+  m=max(m, smoothstep(.004,-.004, p.y-(base-.03)));
+  col=mix(col, vec3(.002,0.,.006), m);
+  return col;
+}
+// 6 · vinyl
+vec3 sVinyl(vec2 p, float t){
+  vec2 c=uP0.xy; float R=uP0.z;
+  vec2 q=p-c; float r=length(q)/R; float a=atan(q.y,q.x);
+  float fd=fogD(p,t);
+  vec3 col=vec3(.004,0.,.01) + fd*uCA3*.04;
+  if (r < 1.){
+    float groove=.5+.5*sin(r*460.);
+    float gap=smoothstep(.0,.004,abs(fract(r*6.)-.5)-.49);
+    float la=uP0.w;
+    float s1=pow(abs(cos(a-la)),70.), s2=pow(abs(cos(a-la-1.25)),110.);
+    vec3 v=vec3(.012,.01,.018) + groove*.01;
+    v += s1*uCA3*(.5+.6*groove)*(1.1+.5*uBeat) + s2*uCB3*(.4+.6*groove)*(1.+.5*uBeat);
+    v *= 1.-gap*.6;
+    v += vec3(1.)*pow(max(0.,cos(a-la)),500.)*.5;
+    v *= smoothstep(1.,.995,r);
+    float spin=a + t*uP1.x;
+    float lab=smoothstep(.34,.335,r);
+    vec3 lc=mix(uCC3, uCA3, .5+.5*sin(spin*3.))*(.45+.35*smoothstep(.15,.3,r));
+    lc *= 1. - .5*smoothstep(.29,.3,r)*smoothstep(.31,.3,r);
+    v=mix(v, lc, lab);
+    v=mix(v, vec3(.75,.72,.8), smoothstep(.03,.024,r));
+    col=v;
+  }
+  col += uCB3*exp(-abs(r-1.)*140.)*.6;
+  return col;
+}
+`;
+        const SCENE_FN = ["sFog", "sDisco", "sLaser", "sChrome", "sFloor", "sHeads", "sVinyl"];
+        function fsFor(sc, ca) {
+          const F = SCENE_FN[sc];
+          return (
+            LIB +
+            `
+vec2 xform(vec2 p){
+  p=rot(uRot)*p; p/=uZoom;
+  if (uWarp > 0.) p += uWarp*.02*vec2(sin(p.y*7.+uT*2.), cos(p.x*7.+uT*1.7));
+  if (uKal > .5) { float r=length(p), a=atan(p.y,p.x), seg=6.28318/uKal; a=mod(a,seg); a=abs(a-seg*.5); p=r*vec2(cos(a),sin(a)); }
+  return p;
+}
+vec3 shade(vec2 p0){ return ${F}(xform(p0), uT); }
+vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14), 0., 1.); }
+void main(){
+  vec2 p0=(gl_FragCoord.xy - .5*uRes)/uRes.y;
+  vec3 col;
+  ${ca ? "float k=uCA*length(p0); col.r=shade(p0*(1.+k)).r; col.g=shade(p0).g; col.b=shade(p0*(1.-k)).b;" : "col=shade(p0);"}
+  col=aces(col*uExp);
+  if (uHue != 0.) col=clamp(hueShift(col,uHue),0.,1.);
+  col=pow(col, vec3(1.05,1.,.97));
+  float v=length(p0*vec2(1.25,.85)); col*=1.-.55*smoothstep(.25,.7,v);
+  gl_FragColor=vec4(col,1.);
+}`
+          );
+        }
+        function sh(type, src) {
+          const s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+          return s;
+        }
+        const UN = ["uRes", "uT", "uL", "uBeat", "uHit", "uPh", "uP0", "uP1", "uCA3", "uCB3", "uCC3", "uZoom", "uRot", "uKal", "uWarp", "uCA", "uHue", "uExp"];
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        const PROGS = {};
+        function program(sc, ca) {
+          const key = sc + "_" + ca;
+          if (PROGS[key]) return PROGS[key];
+          const prog = gl.createProgram();
+          gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+          gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fsFor(sc, ca)));
+          gl.linkProgram(prog);
+          const U = { prog, loc: gl.getAttribLocation(prog, "p") };
+          UN.forEach((n) => (U[n] = gl.getUniformLocation(prog, n)));
+          return (PROGS[key] = U);
+        }
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
+        function drawGL(t) {
+          const shot = shotAt(t);
+          const l = t - shot.s;
+          const U0 = { P0: [0, 0, 0, 0], P1: [0, 0, 0, 0], cA: MAG, cB: CYAN, cC: VIOLET, zoom: 1, rot: 0, kal: 0, warp: 0, ca: 0.012, hue: 0, exp: 1.0 };
+          shot.u(l, t, U0);
+          const kick = pulse(KICKS, t, 7);
+          const hit = pulse(HITS, t, 10);
+          const down = pulse(DOWN, t, 6);
+          U0.zoom *= 1 + 0.012 * kick + 0.03 * down;
+          const U = program(shot.sc, shot.ca ? 1 : 0);
+          gl.useProgram(U.prog);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.enableVertexAttribArray(U.loc);
+          gl.vertexAttribPointer(U.loc, 2, gl.FLOAT, false, 0, 0);
+          gl.uniform2f(U.uRes, canvas.width, canvas.height);
+          gl.uniform1f(U.uT, t);
+          gl.uniform1f(U.uL, l);
+          gl.uniform1f(U.uBeat, Math.max(kick, pulse(BEATS, t, 9) * 0.6));
+          gl.uniform1f(U.uHit, hit);
+          gl.uniform1f(U.uPh, beatInfo(t).ph);
+          gl.uniform4fv(U.uP0, U0.P0);
+          gl.uniform4fv(U.uP1, U0.P1);
+          gl.uniform3fv(U.uCA3, U0.cA);
+          gl.uniform3fv(U.uCB3, U0.cB);
+          gl.uniform3fv(U.uCC3, U0.cC);
+          gl.uniform1f(U.uZoom, U0.zoom);
+          gl.uniform1f(U.uRot, U0.rot);
+          gl.uniform1f(U.uKal, U0.kal);
+          gl.uniform1f(U.uWarp, U0.warp);
+          gl.uniform1f(U.uCA, U0.ca + 0.02 * hit);
+          gl.uniform1f(U.uHue, U0.hue);
+          gl.uniform1f(U.uExp, U0.exp * (1 + 0.18 * kick));
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+          return shot;
+        }
+
+        const FLASHES = [
+          [1.474, 0.45, 9],
+          [8.452, 0.22, 10],
+          [13.677, 0.25, 10],
+          [15.07, 0.5, 14],
+        ];
+        function renderOverlays(t, shot) {
+          let f = 0;
+          for (const [t0, amp, dec] of FLASHES) if (t >= t0) f = Math.max(f, amp * Math.exp(-(t - t0) * dec));
+          $("flash").style.opacity = clamp(f, 0, 1).toFixed(3);
+          $("fade").style.opacity = (1 - smooth(0, 0.35, t) + smooth(15.1, 15.22, t)).toFixed(3);
+          const fr = Math.round(t * FPS);
+          const r = mulberry32(fr + 1);
+          $("grain").style.backgroundPosition = `${Math.floor(r() * 384)}px ${Math.floor(r() * 384)}px`;
+          // foreground haze drifts in front of everything
+          const col = shot.sc === 2 || shot.sc === 5 ? "rgb(120,90,170)" : "rgb(150,110,190)";
+          const fogOp = { 0: 0.3, 1: 0.18, 2: 0.26, 3: 0.08, 4: 0.2, 5: 0.28, 6: 0.14 }[shot.sc];
+          const kick = pulse(KICKS, t, 6);
+          [
+            ["fog1", 22, -9, 1],
+            ["fog2", -15, -14, 0.7],
+          ].forEach(([id, vx, vy, k]) => {
+            const el = $(id);
+            el.style.backgroundColor = col;
+            el.style.opacity = (fogOp * k * (0.85 + 0.3 * kick)).toFixed(3);
+            el.style.transform = `translate(${((t * vx) % 1080).toFixed(1)}px,${((t * vy) % 1080).toFixed(1)}px) scale(1.1)`;
+          });
+        }
+
+        function renderAt(t) {
+          t = clamp(t, 0, DUR);
+          const shot = drawGL(t);
+          const kick = pulse(KICKS, t, 8);
+          canvas.style.transform = `scale(${(1.0 + 0.004 * kick).toFixed(4)})`;
+          renderFaces(t);
+          renderOverlays(t, shot);
+        }
+
+        // One paused GSAP timeline; a linear proxy tween drives the procedural renderer on every seek.
+        const tl = gsap.timeline({ paused: true });
+        const clock = { t: 0 };
+        tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+        window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+        renderAt(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
